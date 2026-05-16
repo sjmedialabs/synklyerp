@@ -1,0 +1,468 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// -----------------------------------------------------------------------------
+// CORE & TENANT MANAGEMENT
+// -----------------------------------------------------------------------------
+
+model Tenant {
+  id              String    @id @default(uuid())
+  name            String
+  businessType    String    // Product, Service, Hybrid
+  industrySubtype String?
+  status          String    @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  users           User[]
+  roles           Role[]
+  branches        Branch[]
+  divisions       Division[]
+  designations    Designation[]
+  employees       Employee[]
+  services        Service[]
+  leads           Lead[]
+  projects        Project[]
+  invoices        Invoice[]
+  expenses        ExpenseClaim[]
+  accounts        FinanceAccount[]
+  budgets         Budget[]
+  taxConfigs      TaxConfig[]
+  salaryTemplates SalaryTemplate[]
+  payrollCycles   PayrollCycle[]
+}
+
+// -----------------------------------------------------------------------------
+// RBAC PERMISSION SYSTEM
+// -----------------------------------------------------------------------------
+
+model Role {
+  id          String   @id @default(uuid())
+  tenantId    String?  // Nullable for system roles
+  name        String   // SUPERADMIN, ADMIN, MANAGER, USER, VIEWER
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant?          @relation(fields: [tenantId], references: [id])
+  users       User[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  module      String   // HR, Finance, Sales, Projects, Operations
+  feature     String   // Employees, Attendance, Invoicing, etc.
+  action      String   // CREATE, READ, UPDATE, DELETE, MANAGE
+  description String?
+  
+  roles       RolePermission[]
+
+  @@unique([module, feature, action])
+}
+
+model RolePermission {
+  id           String @id @default(uuid())
+  roleId       String
+  permissionId String
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+// -----------------------------------------------------------------------------
+// USER & AUTHENTICATION (Auth.js Compatible)
+// -----------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(uuid())
+  tenantId      String?   // Nullable for SuperAdmin
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  image         String?
+  roleId        String?
+  status        String    @default("ACTIVE")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  // Relations
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id])
+  role          Role?     @relation(fields: [roleId], references: [id])
+  employee      Employee? // Link to employee record if applicable
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// -----------------------------------------------------------------------------
+// ORGANISATION SETUP
+// -----------------------------------------------------------------------------
+
+model Branch {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  code        String
+  description String?
+  officeType  String    // None, Primary, Corporate, Both
+  country     String
+  state       String
+  city        String
+  address     String?
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  employees   Employee[]
+}
+
+model Division {
+  id              String    @id @default(uuid())
+  tenantId        String
+  name            String
+  code            String
+  description     String?
+  modulesAssigned String[]
+  status          String    @default("ACTIVE")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  employees       Employee[]
+}
+
+model Designation {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  employees   Employee[]
+}
+
+// -----------------------------------------------------------------------------
+// HUMAN RESOURCES & PAYROLL
+// -----------------------------------------------------------------------------
+
+model Employee {
+  id              String    @id @default(uuid())
+  tenantId        String
+  userId          String?   @unique
+  employeeCode    String    @unique
+  fullName        String
+  dateOfJoining   DateTime
+  designationId   String
+  department      String?
+  branchId        String
+  divisionId      String
+  employmentType  String    // Full-time, Part-time, Contract, etc.
+  status          String    @default("ACTIVE")
+  workEmail       String?
+  personalEmail   String?
+  phoneNumber     String?
+  emergencyContact String?
+  reportingToId   String?
+
+  // Payroll links
+  salaryTemplateId String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  tenant          Tenant       @relation(fields: [tenantId], references: [id])
+  user            User?        @relation(fields: [userId], references: [id])
+  designation     Designation  @relation(fields: [designationId], references: [id])
+  branch          Branch       @relation(fields: [branchId], references: [id])
+  division        Division     @relation(fields: [divisionId], references: [id])
+  manager         Employee?    @relation("ReportingManager", fields: [reportingToId], references: [id])
+  subordinates    Employee[]   @relation("ReportingManager")
+  attendances     Attendance[]
+  payslips        Payslip[]
+  expenseClaims   ExpenseClaim[]
+  salaryTemplate  SalaryTemplate? @relation(fields: [salaryTemplateId], references: [id])
+}
+
+model Attendance {
+  id          String    @id @default(uuid())
+  employeeId  String
+  date        DateTime
+  punchIn     DateTime?
+  punchOut    DateTime?
+  status      String    // Present, Late, Absent, On Leave
+  otHours     Float     @default(0)
+  flags       String?
+
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  @@unique([employeeId, date])
+}
+
+// PAYROLL & COMPENSATION
+
+model SalaryTemplate {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  basic       Float
+  hra         Float
+  da          Float
+  allowances  Json      // Array of objects {name, amount}
+  deductions  Json      // Array of objects {name, amount}
+  pfPercent   Float     @default(12)
+  esiPercent  Float     @default(0.75)
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  employees   Employee[]
+}
+
+model PayrollCycle {
+  id          String    @id @default(uuid())
+  tenantId    String
+  month       Int
+  year        Int
+  status      String    // DRAFT, PENDING_APPROVAL, APPROVED, PAID
+  processedBy String?
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  payslips    Payslip[]
+
+  @@unique([tenantId, month, year])
+}
+
+model Payslip {
+  id              String    @id @default(uuid())
+  cycleId         String
+  employeeId      String
+  grossSalary     Float
+  netSalary       Float
+  deductionsTotal Float
+  taxDeducted     Float
+  status          String    // GENERATED, SENT, PAID
+  pdfUrl          String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  cycle           PayrollCycle @relation(fields: [cycleId], references: [id])
+  employee        Employee     @relation(fields: [employeeId], references: [id])
+
+  @@unique([cycleId, employeeId])
+}
+
+model ExpenseClaim {
+  id          String    @id @default(uuid())
+  tenantId    String
+  employeeId  String
+  amount      Float
+  category    String    // Travel, Meals, Office Supplies, etc.
+  description String
+  receiptUrl  String?
+  status      String    @default("PENDING") // PENDING, APPROVED, REJECTED, REIMBURSED
+  approvedBy  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+}
+
+// -----------------------------------------------------------------------------
+// FINANCE MODULE
+// -----------------------------------------------------------------------------
+
+model FinanceAccount {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  code        String
+  type        String    // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
+  balance     Float     @default(0)
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  journalEntries JournalEntry[]
+}
+
+model JournalEntry {
+  id          String    @id @default(uuid())
+  accountId   String
+  amount      Float
+  type        String    // CREDIT, DEBIT
+  description String
+  reference   String?
+  date        DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+
+  account     FinanceAccount @relation(fields: [accountId], references: [id])
+}
+
+model Invoice {
+  id          String    @id @default(uuid())
+  tenantId    String
+  customerId  String?   // Link to Customer model (pending)
+  invoiceNo   String
+  amount      Float
+  taxAmount   Float
+  totalAmount Float
+  dueDate     DateTime
+  status      String    @default("DRAFT") // DRAFT, SENT, PAID, OVERDUE, CANCELLED
+  pdfUrl      String?
+  items       Json      // Line items details
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+}
+
+model Budget {
+  id          String    @id @default(uuid())
+  tenantId    String
+  department  String
+  year        Int
+  totalAmount Float
+  spentAmount Float     @default(0)
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+}
+
+model TaxConfig {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String    // GST, VAT, TDS
+  rate        Float
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+}
+
+// -----------------------------------------------------------------------------
+// FINANCE: SERVICES HUB
+// -----------------------------------------------------------------------------
+
+model Service {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  category    String
+  description String?
+  basePrice   Float
+  unit        String
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  leads       Lead[]
+}
+
+// -----------------------------------------------------------------------------
+// SALES & CRM
+// -----------------------------------------------------------------------------
+
+model Lead {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  company     String?
+  phone       String?
+  email       String?
+  leadType    String    // Inbound, Referral, Outbound
+  serviceId   String?
+  source      String?
+  assignedTo  String?   // Link to User/Employee ID later
+  status      String    @default("FRESH_LEAD") // Fresh Lead, Prospect, Qualified, etc.
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  service     Service?  @relation(fields: [serviceId], references: [id])
+}
+
+// -----------------------------------------------------------------------------
+// PROJECT MANAGEMENT
+// -----------------------------------------------------------------------------
+
+model Project {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  clientName  String
+  managerId   String?
+  status      String    @default("PLANNING") // Planning, Active, On Hold, Completed, Cancelled
+  priority    String    @default("MEDIUM") // Low, Medium, High, Critical
+  startDate   DateTime?
+  dueDate     DateTime?
+  budget      Float?
+  progress    Int       @default(0)
+  tags        String[]
+  description String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+}
