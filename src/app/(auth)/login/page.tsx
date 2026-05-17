@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ShieldCheck, Mail, Lock } from "lucide-react";
 import Link from "next/link";
@@ -23,6 +23,9 @@ export default function LoginPage() {
             <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-indigo-600/20 mb-6 mx-auto lg:mx-0">S</div>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">Welcome back</h1>
             <p className="text-slate-600 dark:text-slate-400">Sign in to your SynklyERP workspace.</p>
+            <p className="text-xs text-slate-500 mt-2">
+              Demo: admin@synklydemo.io / Synkly@2026! · Super Admin: bizflow@admin.io / Synkly@2026!
+            </p>
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
@@ -51,11 +54,14 @@ export default function LoginPage() {
                 const res = await signIn("credentials", {
                   email,
                   password,
-                  callbackUrl: "/app"
+                  redirect: false,
                 });
                 if (res?.error) {
-                  alert("Invalid credentials. Please try again.");
+                  alert("Invalid credentials. Run npm run db:seed if this is a fresh database.");
+                  return;
                 }
+                const session = await getSession();
+                window.location.href = session?.user?.role === "SUPERADMIN" ? "/superadmin" : "/app";
               }
             }}>
               <div className="space-y-2">

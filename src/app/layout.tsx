@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono } from "next/font/google";
 import { QueryProvider } from "@/providers/query-provider";
+import { AuthSessionProvider } from "@/providers/session-provider";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -24,11 +20,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-      <body className="min-h-screen bg-background font-sans text-foreground">
-        <QueryProvider>
-          {children}
-        </QueryProvider>
+    <html
+      lang="en"
+      className={`${geistMono.variable} font-sans antialiased`}
+      style={{ fontFamily: 'var(--font-google-sans)' }}
+      suppressHydrationWarning
+    >
+      <body
+        className="min-h-screen bg-background text-foreground"
+        style={{ fontFamily: 'inherit' }}
+        suppressHydrationWarning
+      >
+        <AuthSessionProvider>
+          <QueryProvider>{children}</QueryProvider>
+        </AuthSessionProvider>
       </body>
     </html>
   );

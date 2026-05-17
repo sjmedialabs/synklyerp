@@ -4,8 +4,6 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, BarChart3, Users, Building2, LayoutTemplate, ShieldCheck, Zap, Globe, Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-
 const stats = [
   { label: "Active Businesses", value: "12,000+" },
   { label: "Transactions Processed", value: "₹2.3B+" },
@@ -51,9 +49,12 @@ export default function LandingPage() {
 
             <div className="hidden md:flex items-center gap-4">
               <Link href="/login" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">Sign In</Link>
-              <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20">
-                <Link href="/login">Start Free Trial</Link>
-              </Button>
+              <Link
+                href="/login"
+                className="inline-flex h-9 items-center rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white shadow-md shadow-indigo-600/20 hover:bg-indigo-700"
+              >
+                Start Free Trial
+              </Link>
             </div>
 
             <button className="md:hidden p-2 text-slate-600" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
@@ -83,12 +84,18 @@ export default function LandingPage() {
               A unified, multi-tenant ERP platform managing HR, Finance, Projects, and CRM seamlessly. Built for scale, designed for speed.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Button asChild size="lg" className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 h-12 w-full sm:w-auto shadow-lg shadow-indigo-600/25">
-                <Link href="/login">Start 14-Day Free Trial</Link>
-              </Button>
-              <Button asChild size="lg" variant="outline" className="h-12 px-8 w-full sm:w-auto bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-slate-200 dark:border-slate-800">
-                <Link href="#modules">Explore Modules</Link>
-              </Button>
+              <Link
+                href="/login"
+                className="inline-flex h-12 w-full items-center justify-center rounded-lg bg-indigo-600 px-8 text-base font-medium text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-700 sm:w-auto"
+              >
+                Start 14-Day Free Trial
+              </Link>
+              <Link
+                href="#modules"
+                className="inline-flex h-12 w-full items-center justify-center rounded-lg border border-slate-200 bg-white/50 px-8 text-base font-medium backdrop-blur-sm hover:bg-white sm:w-auto dark:border-slate-800 dark:bg-slate-900/50"
+              >
+                Explore Modules
+              </Link>
             </div>
             
             <div className="mt-12 flex flex-wrap justify-center gap-6 items-center text-slate-500 dark:text-slate-400 text-sm font-medium">
@@ -163,9 +170,12 @@ export default function LandingPage() {
           <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight mb-6">Ready to streamline your enterprise?</h2>
           <p className="text-xl text-slate-300 mb-10">Join thousands of businesses scaling faster with SynklyERP.</p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Button asChild size="lg" className="bg-indigo-500 hover:bg-indigo-400 text-white shadow-lg h-14 px-10 text-lg">
-              <Link href="/login">Start your free trial</Link>
-            </Button>
+            <Link
+              href="/login"
+              className="inline-flex h-14 items-center rounded-lg bg-indigo-500 px-10 text-lg font-medium text-white shadow-lg hover:bg-indigo-400"
+            >
+              Start your free trial
+            </Link>
           </div>
         </div>
       </section>

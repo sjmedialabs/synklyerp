@@ -1,129 +1,117 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Users, Building2, Receipt, TrendingUp, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { Users, Building2, Briefcase, FolderKanban, Receipt, Activity, Loader2 } from "lucide-react";
+import { PageHeader } from "@/components/shared/page-header";
 
-const overviewCards = [
-  { title: "Total Employees", value: "142", trend: "+4 this month", icon: Users, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20" },
-  { title: "Active Branches", value: "4", trend: "Across 2 countries", icon: Building2, color: "text-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-900/20" },
-  { title: "Monthly Revenue", value: "₹4.2M", trend: "+12.5% vs last month", icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
-  { title: "Active Projects", value: "18", trend: "3 overdue", icon: Receipt, color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-900/20" },
-];
+async function getJson<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  const json = await res.json();
+  if (!json.success) return null as T;
+  return json.data as T;
+}
 
-export default function DashboardOverview() {
+export default function AppDashboardPage() {
+  const { data: userStats, isLoading: uLoading } = useQuery({
+    queryKey: ["dash-user-stats"],
+    queryFn: () => getJson<{ total: number; active: number }>("/api/organisation/users/stats"),
+  });
+  const { data: empStats, isLoading: eLoading } = useQuery({
+    queryKey: ["dash-emp-stats"],
+    queryFn: () => getJson<{ total: number; active: number }>("/api/hr/employees/stats"),
+  });
+  const { data: leadStats } = useQuery({
+    queryKey: ["dash-lead-stats"],
+    queryFn: () => getJson<{ total: number }>("/api/sales/leads/stats"),
+  });
+  const { data: projectStats } = useQuery({
+    queryKey: ["dash-project-stats"],
+    queryFn: () => getJson<{ total: number }>("/api/projects/stats"),
+  });
+  const { data: activity = [] } = useQuery({
+    queryKey: ["dash-activity"],
+    queryFn: () => getJson<{ module: string; action: string; userName?: string; createdAt: string }[]>("/api/activity-logs?limit=8"),
+  });
+
+  const kpis = [
+    { label: "Org Users", value: userStats?.total ?? "—", icon: Users, href: "/app/organisation/users", loading: uLoading },
+    { label: "Employees", value: empStats?.total ?? "—", icon: Briefcase, href: "/app/hr/employees", loading: eLoading },
+    { label: "Leads", value: leadStats?.total ?? "—", icon: Receipt, href: "/app/sales/leads", loading: false },
+    { label: "Projects", value: projectStats?.total ?? "—", icon: FolderKanban, href: "/app/projects/bucket", loading: false },
+  ];
+
+  const shortcuts = [
+    { label: "Add Branch", href: "/app/organisation/branches" },
+    { label: "Add Employee", href: "/app/hr/employees" },
+    { label: "New Lead", href: "/app/sales/leads" },
+    { label: "Service Catalog", href: "/app/finance/services" },
+    { label: "Taxes", href: "/app/organisation/taxes" },
+    { label: "Attendance", href: "/app/hr/attendance" },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Welcome back, John</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Here's what's happening in your enterprise today.</p>
-        </div>
-        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
-          Generate Report
-        </Button>
-      </div>
+    <div>
+      <PageHeader
+        title="Workspace Dashboard"
+        description="Overview of your organisation with live data from PostgreSQL-backed APIs."
+      />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {overviewCards.map((card, i) => (
-          <motion.div 
-            key={i}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm"
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {kpis.map((k) => (
+          <Link
+            key={k.label}
+            href={k.href}
+            className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
           >
-            <div className="flex justify-between items-start mb-4">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${card.bg}`}>
-                <card.icon size={20} className={card.color} />
-              </div>
+            <div className="mb-3 flex items-center justify-between">
+              <k.icon className="h-5 w-5 text-indigo-600" />
+              {k.loading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
             </div>
-            <h3 className="text-slate-500 dark:text-slate-400 text-sm font-medium">{card.title}</h3>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-bold text-slate-900 dark:text-white">{card.value}</span>
-              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{card.trend}</span>
-            </div>
-          </motion.div>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">{k.value}</p>
+            <p className="text-sm text-slate-500 group-hover:text-indigo-600">{k.label}</p>
+          </Link>
         ))}
       </div>
 
-      {/* Quick Actions & Recent Activity Layout */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        
-        {/* Main Content Area */}
-        <div className="lg:col-span-2 space-y-6">
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden"
-          >
-            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-              <h2 className="font-semibold text-slate-900 dark:text-white">Recent Activity</h2>
-              <Button variant="ghost" size="sm" className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 h-8">
-                View all
-              </Button>
-            </div>
-            <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
-              {[1, 2, 3, 4, 5].map((_, i) => (
-                <div key={i} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex items-start gap-4">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Users size={14} className="text-slate-500 dark:text-slate-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">New employee onboarded</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Sarah Jenkins was added to the Engineering division.</p>
-                  </div>
-                  <span className="text-xs text-slate-400 shrink-0">{i + 1}h ago</span>
-                </div>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+            <Activity size={18} className="text-indigo-600" /> Recent activity
+          </h3>
+          {activity.length === 0 ? (
+            <p className="text-sm text-slate-500">No activity logs yet. Actions across modules will appear here after migration 003.</p>
+          ) : (
+            <ul className="space-y-3">
+              {activity.map((a, i) => (
+                <li key={i} className="flex items-start justify-between border-b border-slate-100 pb-2 text-sm last:border-0 dark:border-slate-800">
+                  <span>
+                    <span className="font-medium text-slate-900 dark:text-white">{a.module}</span>
+                    <span className="text-slate-500"> · {a.action}</span>
+                    {a.userName && <span className="text-slate-400"> by {a.userName}</span>}
+                  </span>
+                  <span className="shrink-0 text-xs text-slate-400">{new Date(a.createdAt).toLocaleString()}</span>
+                </li>
               ))}
-            </div>
-          </motion.div>
+            </ul>
+          )}
         </div>
 
-        {/* Sidebar Widgets */}
-        <div className="space-y-6">
-          <motion.div 
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
-            className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-xl p-6 text-white shadow-lg"
-          >
-            <h3 className="font-semibold mb-2">Complete your setup</h3>
-            <p className="text-indigo-100 text-sm mb-4">You have 2 pending tasks to fully configure your ERP workspace.</p>
-            <div className="w-full bg-white/20 rounded-full h-1.5 mb-4">
-              <div className="bg-white h-1.5 rounded-full w-2/3"></div>
-            </div>
-            <Button className="w-full bg-white text-indigo-700 hover:bg-slate-100">
-              Continue Setup
-            </Button>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.6 }}
-            className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5"
-          >
-            <h3 className="font-semibold text-slate-900 dark:text-white mb-4">Quick Links</h3>
-            <div className="space-y-2">
-              <Link href="/app/hr/employees" className="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800/50 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 transition-colors group">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-indigo-700 dark:group-hover:text-indigo-400">Add Employee</span>
-                <ArrowRight size={16} className="text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-transform" />
+        <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+            <Building2 size={18} className="text-indigo-600" /> Quick actions
+          </h3>
+          <div className="flex flex-col gap-2">
+            {shortcuts.map((s) => (
+              <Link
+                key={s.href}
+                href={s.href}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-indigo-900/30"
+              >
+                {s.label}
               </Link>
-              <Link href="/app/finance/services" className="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800/50 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 transition-colors group">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-indigo-700 dark:group-hover:text-indigo-400">Create Invoice</span>
-                <ArrowRight size={16} className="text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-              <Link href="/app/organisation/branches" className="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800/50 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 transition-colors group">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-indigo-700 dark:group-hover:text-indigo-400">Manage Branches</span>
-                <ArrowRight size={16} className="text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-            </div>
-          </motion.div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

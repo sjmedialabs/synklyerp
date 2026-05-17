@@ -16,9 +16,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate prisma client
-RUN npx prisma generate
-
 # Next.js telemetry
 ENV NEXT_TELEMETRY_DISABLED 1
 

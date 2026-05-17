@@ -1,71 +1,32 @@
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { apiError, apiSuccess, parsePagination, paginationMeta } from "@/lib/api/response";
+import { handleApiError, requireTenantSession, resolveTenantId } from "@/lib/tenant/context";
+import * as repo from "@/repositories/finance/services";
+import { serviceSchema } from "@/validators/finance";
 import { z } from "zod";
-
-const createServiceSchema = z.object({
-  name: z.string().min(2),
-  category: z.string().min(2),
-  description: z.string().optional(),
-  basePrice: z.number().min(0),
-  unit: z.string().min(1),
-});
 
 export async function GET(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
-    
-    // Fallback for development if no tenantId is linked to user yet
-    const tenantId = (session.user as any).tenantId;
-    const query = tenantId ? { tenantId } : {};
-    
-    const services = await db.service.findMany({
-      where: query,
-      orderBy: { createdAt: 'desc' }
-    });
-    
-    return NextResponse.json(services);
+    const ctx = await requireTenantSession();
+    const tenantId = await resolveTenantId(ctx);
+    const params = parsePagination(new URL(req.url).searchParams);
+    const result = await repo.listServices(tenantId, params);
+    return apiSuccess(result.items, paginationMeta(result.total, result.page, result.limit));
   } catch (error) {
-    console.error("[SERVICES_GET]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    const err = handleApiError(error);
+    return apiError(err.message, err.status, err.code);
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user) return new NextResponse("Unauthorized", { status: 401 });
-    
-    // In a real environment, throw if tenantId is missing. For now, fallback for setup.
-    let tenantId = (session.user as any).tenantId;
-    if (!tenantId) {
-      // Find or create a default tenant for dev
-      let defaultTenant = await db.tenant.findFirst();
-      if (!defaultTenant) {
-        defaultTenant = await db.tenant.create({
-          data: { name: "Synkly Demo Corp", businessType: "Hybrid", status: "ACTIVE" }
-        });
-      }
-      tenantId = defaultTenant.id;
-    }
-
-    const body = await req.json();
-    const validatedData = createServiceSchema.parse(body);
-
-    const service = await db.service.create({
-      data: {
-        ...validatedData,
-        tenantId,
-      }
-    });
-
-    return NextResponse.json(service);
+    const ctx = await requireTenantSession();
+    const tenantId = await resolveTenantId(ctx);
+    const body = serviceSchema.parse(await req.json());
+    const item = await repo.createService(tenantId, body);
+    return apiSuccess(item, undefined, 201);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return new NextResponse(error.message, { status: 400 });
-    }
-    console.error("[SERVICES_POST]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    if (error instanceof z.ZodError) return apiError("Validation failed", 400, "VALIDATION_ERROR", error.flatten());
+    const err = handleApiError(error);
+    return apiError(err.message, err.status, err.code);
   }
 }
