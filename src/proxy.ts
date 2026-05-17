@@ -6,10 +6,10 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const role = req.auth?.user?.role;
 
-  const isPublicRoute =
-    nextUrl.pathname === "/" ||
+  const isAuthRoute =
     nextUrl.pathname.startsWith("/login") ||
-    nextUrl.pathname.startsWith("/signup");
+    nextUrl.pathname.startsWith("/signup") ||
+    nextUrl.pathname.startsWith("/forgot-password");
 
   const isSuperAdminRoute = nextUrl.pathname.startsWith("/superadmin");
   const isOnboardingRoute = nextUrl.pathname.startsWith("/onboarding");
@@ -19,7 +19,7 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/login", nextUrl));
   }
 
-  if (isLoggedIn && (nextUrl.pathname === "/" || nextUrl.pathname.startsWith("/login"))) {
+  if (isLoggedIn && (nextUrl.pathname === "/" || isAuthRoute)) {
     if (role === "SUPERADMIN") {
       return NextResponse.redirect(new URL("/superadmin", nextUrl));
     }
