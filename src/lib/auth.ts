@@ -53,6 +53,7 @@ async function getRequestIp() {
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   ...authConfig,
   providers: [
     Credentials({
