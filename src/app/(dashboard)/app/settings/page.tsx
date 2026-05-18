@@ -1,15 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
+import { Loader2, LogOut } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { secureSignOut } from "@/lib/auth/client";
 import { useTenantModules } from "@/hooks/tenant/use-tenant-modules";
 import { moduleLabel } from "@/lib/modules/activation";
 import type { ErpModuleKey } from "@/constants/onboarding";
 
 export default function SettingsPage() {
   const { data: session } = useSession();
+  const [signingOut, setSigningOut] = useState(false);
   const { data: modules = [], isLoading: modulesLoading } = useTenantModules();
   const sessionModules = session?.user?.enabledModules ?? modules;
 
@@ -68,9 +73,28 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="mt-6 max-w-2xl rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-400">
-        Security features (rate limiting, OTP cooldown, refresh tokens, password policy) are active. Sign out
-        from the header menu to revoke your refresh token on this device.
+      <div className="mt-6 max-w-2xl rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Session</h3>
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+          Signing out revokes your refresh token on this device and ends your session.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={signingOut}
+          className="mt-4 gap-2 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900 dark:text-rose-400 dark:hover:bg-rose-950/30"
+          onClick={async () => {
+            setSigningOut(true);
+            try {
+              await secureSignOut();
+            } finally {
+              setSigningOut(false);
+            }
+          }}
+        >
+          {signingOut ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
+          Sign out
+        </Button>
       </div>
     </div>
   );

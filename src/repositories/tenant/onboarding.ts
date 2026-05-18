@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isMissingSchemaError } from "@/lib/db/schema-errors";
 import { resolveModulesForBusinessType } from "@/lib/modules/activation";
+import type { BusinessType } from "@/constants/onboarding";
 import { activateModules, listActiveModules } from "@/repositories/tenant/modules";
 import { syncRolePermissionsForTenant } from "@/lib/rbac/sync-tenant-roles";
 import type { OnboardingDraftInput } from "@/validators/onboarding";
@@ -39,7 +41,31 @@ export async function getOnboardingState(tenantId: string): Promise<OnboardingSt
     .eq("id", tenantId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingSchemaError(error)) {
+      const { data: legacy, error: legacyErr } = await supabase
+        .from("tenants")
+        .select("business_type, industry_subtype")
+        .eq("id", tenantId)
+        .maybeSingle();
+      if (legacyErr || !legacy) throw legacyErr ?? new Error("NOT_FOUND");
+      const businessType = (legacy as { business_type: string }).business_type;
+      const previewModules = resolveModulesForBusinessType(businessType as BusinessType);
+      return {
+        completed: true,
+        locked: true,
+        completedAt: null,
+        draft: null,
+        businessType,
+        industrySubtype: (legacy as { industry_subtype: string | null }).industry_subtype,
+        employeeCount: null,
+        businessSize: null,
+        enabledModules: previewModules,
+        previewModules,
+      };
+    }
+    throw error;
+  }
   if (!data) throw new Error("NOT_FOUND");
 
   const row = data as {

@@ -66,6 +66,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         rememberMe: { label: "Remember Me", type: "text" },
       },
       async authorize(credentials) {
+        try {
         const rememberMe = credentials?.rememberMe?.toString() === "true";
         const otp = credentials?.otp?.toString().trim();
         const channel = credentials?.channel?.toString() === "sms" ? "sms" : "email";
@@ -88,17 +89,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             channel === "sms" ? await findUserByPhone(identifier) : await findUserByEmail(identifier);
           if (!user || user.status !== "ACTIVE") return null;
 
-          await recordLoginAttempt({ userId: user.id, tenantId: user.tenantId, success: true });
-          await writeActivityLog({
-            tenantId: user.tenantId,
-            userId: user.id,
-            module: "auth",
-            action: "login_otp",
-            entityType: "user",
-            entityId: user.id,
-          });
+          try {
+            await recordLoginAttempt({ userId: user.id, tenantId: user.tenantId, success: true });
+            await writeActivityLog({
+              tenantId: user.tenantId,
+              userId: user.id,
+              module: "auth",
+              action: "login_otp",
+              entityType: "user",
+              entityId: user.id,
+            });
+          } catch {
+            /* audit tables optional */
+          }
 
-          return buildAuthUser(user, rememberMe);
+          return await buildAuthUser(user, rememberMe);
         }
 
         if (!email || !password) return null;
@@ -108,38 +113,54 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const user = await findUserByEmail(email);
         if (!user?.passwordHash || user.status !== "ACTIVE") {
           if (user) {
-            await recordLoginAttempt({
-              userId: user.id,
-              tenantId: user.tenantId,
-              success: false,
-              failureReason: "inactive_or_no_password",
-            });
+            try {
+              await recordLoginAttempt({
+                userId: user.id,
+                tenantId: user.tenantId,
+                success: false,
+                failureReason: "inactive_or_no_password",
+              });
+            } catch {
+              /* optional */
+            }
           }
           return null;
         }
 
         const valid = await verifyPassword(password, user.passwordHash);
         if (!valid) {
-          await recordLoginAttempt({
-            userId: user.id,
-            tenantId: user.tenantId,
-            success: false,
-            failureReason: "invalid_password",
-          });
+          try {
+            await recordLoginAttempt({
+              userId: user.id,
+              tenantId: user.tenantId,
+              success: false,
+              failureReason: "invalid_password",
+            });
+          } catch {
+            /* optional */
+          }
           return null;
         }
 
-        await recordLoginAttempt({ userId: user.id, tenantId: user.tenantId, success: true });
-        await writeActivityLog({
-          tenantId: user.tenantId,
-          userId: user.id,
-          module: "auth",
-          action: "login",
-          entityType: "user",
-          entityId: user.id,
-        });
+        try {
+          await recordLoginAttempt({ userId: user.id, tenantId: user.tenantId, success: true });
+          await writeActivityLog({
+            tenantId: user.tenantId,
+            userId: user.id,
+            module: "auth",
+            action: "login",
+            entityType: "user",
+            entityId: user.id,
+          });
+        } catch {
+          /* optional */
+        }
 
-        return buildAuthUser(user, rememberMe);
+        return await buildAuthUser(user, rememberMe);
+        } catch (err) {
+          console.error("[auth] authorize failed:", err);
+          return null;
+        }
       },
     }),
   ],

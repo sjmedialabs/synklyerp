@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isMissingSchemaError } from "@/lib/db/schema-errors";
 
 const LOCKOUT_WINDOW_MINUTES = 15;
 const MAX_FAILURES = 5;
@@ -14,7 +15,10 @@ export async function isAccountLocked(userId: string): Promise<boolean> {
     .eq("success", false)
     .gte("created_at", since);
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingSchemaError(error)) return false;
+    throw error;
+  }
   return (count ?? 0) >= MAX_FAILURES;
 }
 

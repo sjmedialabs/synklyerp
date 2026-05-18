@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isMissingSchemaError } from "@/lib/db/schema-errors";
 import { listActiveModules } from "@/repositories/tenant/modules";
 import { resolveModulesForBusinessType } from "@/lib/modules/activation";
+import type { BusinessType } from "@/constants/onboarding";
 
 export type TenantSessionMeta = {
   onboardingCompleted: boolean;
@@ -19,7 +21,14 @@ export async function getTenantSessionMeta(tenantId: string | null): Promise<Ten
     .eq("id", tenantId)
     .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
+    if (isMissingSchemaError(error)) {
+      console.warn("[session-meta] onboarding columns missing — run migration 005_onboarding_tenant_modules.sql");
+      return { onboardingCompleted: true, enabledModules: [] };
+    }
+    return { onboardingCompleted: false, enabledModules: [] };
+  }
+  if (!data) {
     return { onboardingCompleted: false, enabledModules: [] };
   }
 
@@ -28,7 +37,7 @@ export async function getTenantSessionMeta(tenantId: string | null): Promise<Ten
 
   const enabledModules = completed
     ? await listActiveModules(tenantId)
-    : resolveModulesForBusinessType(row.business_type);
+    : resolveModulesForBusinessType(row.business_type as BusinessType);
 
   return { onboardingCompleted: completed, enabledModules };
 }

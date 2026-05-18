@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isMissingSchemaError } from "@/lib/db/schema-errors";
 
 export const REFRESH_COOKIE = "synkly.refresh_token";
 
@@ -35,7 +36,13 @@ export async function issueRefreshToken(input: {
     user_agent: input.userAgent ?? null,
     ip_address: input.ipAddress ?? null,
   });
-  if (error) throw error;
+  if (error) {
+    if (isMissingSchemaError(error)) {
+      console.warn("[refresh-token] refresh_tokens missing — run migration 006_auth_security.sql");
+      return { expiresAt };
+    }
+    throw error;
+  }
 
   const cookieStore = await cookies();
   cookieStore.set(REFRESH_COOKIE, raw, {

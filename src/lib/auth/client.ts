@@ -1,18 +1,25 @@
 import { getSession, signOut } from "next-auth/react";
 
 export async function bootstrapAuthSession(rememberMe: boolean) {
-  await fetch("/api/auth/session/issue", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ rememberMe }),
-  });
+  try {
+    const res = await fetch("/api/auth/session/issue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ rememberMe }),
+    });
+    if (!res.ok) {
+      console.warn("[auth] refresh token issue skipped:", res.status);
+    }
+  } catch {
+    /* non-fatal — session cookie from NextAuth is enough */
+  }
 }
 
 export async function completeAuthRedirect() {
   const session = await getSession();
   const target = session?.user?.role === "SUPERADMIN" ? "/superadmin" : "/app";
-  if (!session?.user?.onboardingCompleted && session?.user?.role !== "SUPERADMIN") {
+  if (session?.user?.onboardingCompleted === false && session?.user?.role !== "SUPERADMIN") {
     window.location.href = "/onboarding";
     return;
   }

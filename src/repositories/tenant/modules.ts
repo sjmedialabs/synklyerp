@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isMissingSchemaError } from "@/lib/db/schema-errors";
 import type { ErpModuleKey } from "@/constants/onboarding";
 
 export async function listActiveModules(tenantId: string): Promise<string[]> {
@@ -8,7 +9,13 @@ export async function listActiveModules(tenantId: string): Promise<string[]> {
     .select("module_key")
     .eq("tenant_id", tenantId)
     .eq("is_active", true);
-  if (error) throw error;
+  if (error) {
+    if (isMissingSchemaError(error)) {
+      console.warn("[modules] tenant_modules missing — run migration 005_onboarding_tenant_modules.sql");
+      return [];
+    }
+    throw error;
+  }
   return (data ?? []).map((r) => (r as { module_key: string }).module_key);
 }
 

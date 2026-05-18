@@ -128,6 +128,13 @@ export async function POST(req: Request) {
         retryAfterSeconds: seconds,
       });
     }
+    if (error instanceof Error && error.message === "OTP_SCHEMA_MISSING") {
+      return apiError(
+        "OTP is not configured. Run Supabase migrations 004–006 or use email/password login.",
+        503,
+        "OTP_SCHEMA_MISSING"
+      );
+    }
     console.error(error);
     return apiError("Failed to send OTP", 500);
   }

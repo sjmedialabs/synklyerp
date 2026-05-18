@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { secureSignOut } from "@/lib/auth/client";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, Search, ChevronDown, X } from "lucide-react";
+import { Menu, Search, X } from "lucide-react";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { NotificationCenter } from "@/components/layout/notification-center";
+import { UserMenu } from "@/components/layout/user-menu";
 import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
 import { Toaster } from "sonner";
 
@@ -19,40 +19,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const tenantName = session?.user?.tenantName ?? "Workspace";
   const businessType = session?.user?.businessType ?? "—";
-  const userName = session?.user?.name ?? "User";
-  const initials = userName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       <Toaster position="top-right" richColors />
       <aside
-        className={`z-20 hidden flex-col border-r border-slate-200 bg-white transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 md:flex ${
+        className={`sticky top-0 z-20 hidden h-screen shrink-0 flex-col border-r border-slate-200 bg-white transition-[width] duration-300 dark:border-slate-800 dark:bg-slate-900 md:flex ${
           sidebarOpen ? "w-64" : "w-[72px]"
         }`}
       >
-        <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800">
-          {sidebarOpen && (
-            <div className="flex items-center gap-2 overflow-hidden">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-indigo-600 font-bold text-white">
-                S
-              </div>
-              <span className="truncate font-bold tracking-tight dark:text-white">SynklyERP</span>
+        <div
+          className={`relative flex h-16 shrink-0 items-center border-b border-slate-200 dark:border-slate-800 ${
+            sidebarOpen ? "justify-between gap-2 px-4" : "justify-center px-2"
+          }`}
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-indigo-600 text-sm font-bold text-white">
+              S
             </div>
-          )}
+            {sidebarOpen && (
+              <span className="truncate font-bold tracking-tight dark:text-white">SynklyERP</span>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className={`shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 ${
+              sidebarOpen ? "" : "absolute right-1.5 top-1/2 -translate-y-1/2"
+            }`}
+            aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
             <Menu size={20} />
           </button>
         </div>
-        <AppSidebar collapsed={!sidebarOpen} />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <AppSidebar collapsed={!sidebarOpen} />
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -78,20 +79,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               />
             </div>
             <NotificationCenter />
-            <button
-              type="button"
-              onClick={() => secureSignOut()}
-              className="flex items-center gap-2 hover:opacity-80"
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-medium text-white">
-                {initials}
-              </div>
-              <div className="hidden flex-col items-start text-left sm:flex">
-                <span className="text-sm font-medium leading-none text-slate-900 dark:text-white">{userName}</span>
-                <span className="mt-1 text-xs leading-none text-slate-500">{session?.user?.role}</span>
-              </div>
-              <ChevronDown size={16} className="hidden text-slate-400 sm:block" />
-            </button>
+            <UserMenu />
           </div>
         </header>
 
@@ -116,13 +104,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="fixed inset-0 z-50 flex md:hidden">
           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
           <aside className="relative flex h-full w-64 max-w-[85%] flex-col bg-white shadow-2xl dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-200 p-4 dark:border-slate-800">
+            <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800">
               <span className="font-bold dark:text-white">SynklyERP</span>
               <button type="button" onClick={() => setMobileMenuOpen(false)} className="text-slate-500">
                 <X size={20} />
               </button>
             </div>
-            <AppSidebar collapsed={false} />
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <AppSidebar collapsed={false} />
+            </div>
           </aside>
         </div>
       )}

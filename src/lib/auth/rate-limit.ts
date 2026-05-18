@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isMissingSchemaError } from "@/lib/db/schema-errors";
 
 export type RateLimitResult =
   | { allowed: true; remaining: number }
@@ -19,7 +20,13 @@ export async function checkRateLimit(
     .eq("bucket_key", bucketKey)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingSchemaError(error)) {
+      console.warn("[rate-limit] auth_rate_limits missing — run migration 006_auth_security.sql");
+      return { allowed: true, remaining: maxHits };
+    }
+    throw error;
+  }
 
   if (!row) {
     await supabase.from("auth_rate_limits").upsert({

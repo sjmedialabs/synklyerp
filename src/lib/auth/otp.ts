@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isMissingSchemaError } from "@/lib/db/schema-errors";
 
 export const OTP_TTL_MINUTES = 10;
 export const OTP_RESEND_COOLDOWN_SECONDS = 60;
@@ -78,7 +79,12 @@ export async function createOtp(
     user_agent: meta?.userAgent ?? null,
   });
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingSchemaError(error)) {
+      throw new Error("OTP_SCHEMA_MISSING");
+    }
+    throw error;
+  }
 
   return { code, expiresAt };
 }
@@ -102,7 +108,12 @@ export async function verifyOtp(
     .order("created_at", { ascending: false })
     .limit(1);
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingSchemaError(error)) {
+      return { ok: false as const, reason: "schema_missing" };
+    }
+    throw error;
+  }
   const row = rows?.[0];
   if (!row) return { ok: false as const, reason: "not_found" };
 
