@@ -10,7 +10,17 @@ import { ACCOUNT_NAV, type NavItem } from "@/config/navigation";
 import { filterNavigation } from "@/lib/navigation/filter-nav";
 import { usePermissions } from "@/hooks/tenant/use-permissions";
 
-function NavLink({ item, depth = 0, collapsed }: { item: NavItem; depth?: number; collapsed?: boolean }) {
+function NavLink({
+  item,
+  depth = 0,
+  collapsed,
+  onNavigate,
+}: {
+  item: NavItem;
+  depth?: number;
+  collapsed?: boolean;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(true);
   const hasChildren = !!item.children?.length;
@@ -39,7 +49,7 @@ function NavLink({ item, depth = 0, collapsed }: { item: NavItem; depth?: number
         {open && !collapsed && (
           <div className="mt-1 flex flex-col gap-0.5 border-l border-slate-200 pl-2 dark:border-slate-800">
             {item.children!.map((child) => (
-              <NavLink key={child.id} item={child} depth={depth + 1} collapsed={collapsed} />
+              <NavLink key={child.id} item={child} depth={depth + 1} collapsed={collapsed} onNavigate={onNavigate} />
             ))}
           </div>
         )}
@@ -52,6 +62,7 @@ function NavLink({ item, depth = 0, collapsed }: { item: NavItem; depth?: number
   return (
     <Link
       href={item.href}
+      onClick={onNavigate}
       title={collapsed ? item.label : undefined}
       className={`flex items-center rounded-lg text-sm transition-colors ${
         collapsed ? "justify-center px-2 py-2.5" : "gap-2 px-3 py-2"
@@ -96,7 +107,7 @@ function SidebarSignOut({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-export function AppSidebar({ collapsed }: { collapsed: boolean }) {
+export function AppSidebar({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const { data: session } = useSession();
   const { canAccessNavId, isLoading: permsLoading } = usePermissions();
   const navigation = useMemo(() => {
@@ -110,12 +121,12 @@ export function AppSidebar({ collapsed }: { collapsed: boolean }) {
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-2 py-4">
         <div className="flex flex-col gap-1">
           {navigation.map((item) => (
-            <NavLink key={item.id} item={item} collapsed={collapsed} />
+            <NavLink key={item.id} item={item} collapsed={collapsed} onNavigate={onNavigate} />
           ))}
         </div>
       </div>
       <div className="shrink-0 border-t border-slate-200 px-2 py-3 dark:border-slate-800">
-        <NavLink item={ACCOUNT_NAV} collapsed={collapsed} />
+        <NavLink item={ACCOUNT_NAV} collapsed={collapsed} onNavigate={onNavigate} />
         <SidebarSignOut collapsed={collapsed} />
       </div>
     </nav>

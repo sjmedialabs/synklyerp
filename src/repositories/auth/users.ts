@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashPassword } from "@/lib/auth/password";
 import { syncRolePermissionsForTenant } from "@/lib/rbac/sync-tenant-roles";
+import { getPlanBySlug } from "@/repositories/platform/plans";
+import { createSubscriptionForTenant } from "@/repositories/platform/subscriptions";
 
 export async function findUserByPhone(phone: string) {
   const supabase = createAdminClient();
@@ -42,6 +44,7 @@ export async function createTenantWithAdmin(input: {
   email: string;
   phone?: string;
   password: string;
+  planSlug?: string;
 }) {
   const supabase = createAdminClient();
   const passwordHash = await hashPassword(input.password);
@@ -83,6 +86,12 @@ export async function createTenantWithAdmin(input: {
   if (userErr) throw userErr;
 
   await syncRolePermissionsForTenant(tenant.id);
+
+  const planSlug = input.planSlug ?? "starter";
+  const plan = await getPlanBySlug(planSlug);
+  if (plan) {
+    await createSubscriptionForTenant(tenant.id, plan);
+  }
 
   return { tenant, user };
 }

@@ -78,6 +78,9 @@ export function handleApiError(error: unknown) {
         message: "This module is not enabled for your workspace",
       };
     }
+    if (error.message === "EMAIL_EXISTS") {
+      return { status: 409, code: "EMAIL_EXISTS", message: "A user with this email already exists" };
+    }
   }
   return { status: 500, code: "INTERNAL_ERROR", message: "Internal server error" };
 }

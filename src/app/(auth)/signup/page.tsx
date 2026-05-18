@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -15,11 +15,24 @@ import { evaluatePassword } from "@/lib/auth/password-policy";
 import { useOtpResend } from "@/hooks/auth/use-otp-resend";
 
 type SignupChannel = "email" | "sms";
+type SignupStep = "plan" | "details" | "verify";
+
+type PublicPlan = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  monthlyPriceCents: number;
+  features: string[];
+  trialDays: number;
+};
 
 export default function SignupPage() {
   const router = useRouter();
   const [channel, setChannel] = useState<SignupChannel>("email");
-  const [step, setStep] = useState<"details" | "verify">("details");
+  const [step, setStep] = useState<SignupStep>("plan");
+  const [plans, setPlans] = useState<PublicPlan[]>([]);
+  const [planSlug, setPlanSlug] = useState("");
   const [loading, setLoading] = useState(false);
   const [otp, setOtp] = useState("");
   const [devHint, setDevHint] = useState("");
@@ -35,7 +48,30 @@ export default function SignupPage() {
 
   const identifier = channel === "email" ? form.email : form.phone;
 
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("plan");
+    fetch("/api/public/plans")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.success && json.data?.length) {
+          setPlans(json.data);
+          if (fromUrl && json.data.some((p: PublicPlan) => p.slug === fromUrl)) {
+            setPlanSlug(fromUrl);
+          } else {
+            setPlanSlug(json.data[0]?.slug ?? "starter");
+          }
+        } else {
+          setPlanSlug(fromUrl ?? "starter");
+        }
+      })
+      .catch(() => setPlanSlug(fromUrl ?? "starter"));
+  }, []);
+
   const sendOtp = async () => {
+    if (!planSlug) {
+      toast.error("Select a subscription plan");
+      return;
+    }
     if (!form.companyName || !form.fullName || !form.email || !form.password) {
       toast.error("Fill in all required fields");
       return;
@@ -80,7 +116,7 @@ export default function SignupPage() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, channel, otp }),
+        body: JSON.stringify({ ...form, channel, otp, planSlug }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error?.message ?? "Signup failed");
@@ -111,6 +147,7 @@ export default function SignupPage() {
         </p>
       }
     >
+      {step !== "plan" && (
       <div className="mb-6 flex rounded-lg bg-slate-100 p-1">
         {tabs.map((t) => (
           <button
@@ -130,8 +167,43 @@ export default function SignupPage() {
           </button>
         ))}
       </div>
+      )}
 
-      {step === "details" ? (
+      {step === "plan" ? (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">Choose a plan to get started. You can change it later.</p>
+          <div className="grid gap-3">
+            {(plans.length ? plans : [{ slug: "starter", name: "Starter", description: "Default plan", monthlyPriceCents: 0, features: [], trialDays: 14, id: "" }]).map((p) => (
+              <button
+                key={p.slug}
+                type="button"
+                onClick={() => setPlanSlug(p.slug)}
+                className={`rounded-xl border p-4 text-left transition ${
+                  planSlug === p.slug ? "border-[#1B1538] bg-[#1B1538]/5 ring-2 ring-[#1B1538]/20" : "border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-900">{p.name}</span>
+                  <span className="text-sm text-slate-600">
+                    {p.monthlyPriceCents > 0 ? `₹${(p.monthlyPriceCents / 100).toLocaleString("en-IN")}/mo` : "Free"}
+                  </span>
+                </div>
+                {p.description && <p className="mt-1 text-sm text-slate-500">{p.description}</p>}
+                {p.trialDays > 0 && <p className="mt-2 text-xs text-indigo-600">{p.trialDays}-day trial</p>}
+              </button>
+            ))}
+          </div>
+          <Button
+            type="button"
+            disabled={!planSlug}
+            onClick={() => setStep("details")}
+            className="h-11 w-full rounded-full text-white"
+            style={{ backgroundColor: "#1B1538" }}
+          >
+            Continue
+          </Button>
+        </div>
+      ) : step === "details" ? (
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -257,7 +329,7 @@ export default function SignupPage() {
             type="button"
             className="w-full text-sm text-slate-500 hover:text-[#1B1538]"
             onClick={() => {
-              setStep("details");
+              setStep("plan");
               setOtp("");
             }}
           >

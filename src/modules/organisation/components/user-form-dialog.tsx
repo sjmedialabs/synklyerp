@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { orgUserSchema } from "@/validators/organisation";
+import { orgUserFormSchema } from "@/validators/organisation";
 import type { z } from "zod";
 import { Modal } from "@/components/ui/modal";
 import { Input, Label, Select } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import type { OrgUser } from "@/lib/mappers/organisation";
 import type { Branch } from "@/lib/mappers/organisation";
 import type { Designation } from "@/lib/mappers/organisation";
 
-type FormData = z.infer<typeof orgUserSchema>;
+type FormData = z.infer<typeof orgUserFormSchema>;
 
 type Props = {
   open: boolean;
@@ -22,13 +22,23 @@ type Props = {
   branches: Branch[];
   designations: Designation[];
   roles: { id: string; name: string }[];
+  isSubmitting?: boolean;
 };
 
-export function UserFormDialog({ open, onClose, onSubmit, initial, branches, designations, roles }: Props) {
+export function UserFormDialog({
+  open,
+  onClose,
+  onSubmit,
+  initial,
+  branches,
+  designations,
+  roles,
+  isSubmitting,
+}: Props) {
   const isEdit = !!initial;
 
   const form = useForm<FormData>({
-    resolver: zodResolver(orgUserSchema),
+    resolver: zodResolver(orgUserFormSchema),
     defaultValues: {
       name: "",
       email: "",
@@ -49,10 +59,10 @@ export function UserFormDialog({ open, onClose, onSubmit, initial, branches, des
         email: initial?.email ?? "",
         userCode: initial?.userCode ?? "",
         password: "",
-        designationId: initial?.designationId ?? "",
+        designationId: initial?.designationId ?? initial?.designation?.id ?? "",
         department: initial?.department ?? "",
-        branchId: initial?.branchId ?? "",
-        roleId: initial?.roleId ?? "",
+        branchId: initial?.branchId ?? initial?.branch?.id ?? "",
+        roleId: initial?.roleId ?? initial?.role?.id ?? "",
         status: (initial?.status as FormData["status"]) ?? "ACTIVE",
       });
     }
@@ -63,8 +73,12 @@ export function UserFormDialog({ open, onClose, onSubmit, initial, branches, des
       form.setError("password", { message: "Password required" });
       return;
     }
-    await onSubmit(data);
-    onClose();
+    try {
+      await onSubmit(data);
+      onClose();
+    } catch {
+      /* parent shows toast */
+    }
   });
 
   return (
@@ -73,9 +87,13 @@ export function UserFormDialog({ open, onClose, onSubmit, initial, branches, des
         <div className="sm:col-span-2"><Label>Name *</Label><Input {...form.register("name")} /></div>
         <div><Label>Email *</Label><Input type="email" {...form.register("email")} /></div>
         <div><Label>User Code</Label><Input {...form.register("userCode")} /></div>
-        {!isEdit && (
-          <div className="sm:col-span-2"><Label>Password *</Label><Input type="password" {...form.register("password")} /></div>
-        )}
+        <div className="sm:col-span-2">
+          <Label>{isEdit ? "New password (optional)" : "Password *"}</Label>
+          <Input type="password" autoComplete="new-password" {...form.register("password")} />
+          {form.formState.errors.password && (
+            <p className="mt-1 text-xs text-rose-600">{form.formState.errors.password.message}</p>
+          )}
+        </div>
         <div><Label>Designation</Label>
           <Select {...form.register("designationId")}>
             <option value="">—</option>
@@ -103,7 +121,13 @@ export function UserFormDialog({ open, onClose, onSubmit, initial, branches, des
         </div>
         <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="bg-indigo-600 text-white" disabled={form.formState.isSubmitting}>Save</Button>
+          <Button
+            type="submit"
+            className="bg-indigo-600 text-white"
+            disabled={form.formState.isSubmitting || isSubmitting}
+          >
+            {isSubmitting ? "Saving..." : "Save"}
+          </Button>
         </div>
       </form>
     </Modal>

@@ -134,15 +134,28 @@ export async function updateOrgUser(
   }>
 ) {
   const supabase = createAdminClient();
+
+  if (input.email) {
+    const { data: existing } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", input.email.toLowerCase())
+      .neq("id", id)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (existing) throw new Error("EMAIL_EXISTS");
+  }
+
   const payload: Record<string, unknown> = {};
+  payload.updated_at = new Date().toISOString();
   if (input.name !== undefined) payload.name = input.name;
   if (input.email !== undefined) payload.email = input.email.toLowerCase();
   if (input.password) payload.password_hash = await hashPassword(input.password);
   if (input.userCode !== undefined) payload.user_code = input.userCode;
-  if (input.designationId !== undefined) payload.designation_id = input.designationId;
+  if (input.designationId !== undefined) payload.designation_id = input.designationId || null;
   if (input.department !== undefined) payload.department = input.department;
-  if (input.branchId !== undefined) payload.branch_id = input.branchId;
-  if (input.roleId !== undefined) payload.role_id = input.roleId;
+  if (input.branchId !== undefined) payload.branch_id = input.branchId || null;
+  if (input.roleId !== undefined) payload.role_id = input.roleId || null;
   if (input.status !== undefined) payload.status = input.status;
 
   const { data, error } = await supabase

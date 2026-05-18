@@ -1,26 +1,33 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { resolveModuleForAppPath } from "@/lib/modules/path-access";
+import { isPublicPath } from "@/lib/navigation/public-routes";
 
 export default auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
   const role = req.auth?.user?.role;
+  const pathname = nextUrl.pathname;
 
   const isAuthRoute =
-    nextUrl.pathname.startsWith("/login") ||
-    nextUrl.pathname.startsWith("/signup") ||
-    nextUrl.pathname.startsWith("/forgot-password");
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password");
 
-  const isSuperAdminRoute = nextUrl.pathname.startsWith("/superadmin");
-  const isOnboardingRoute = nextUrl.pathname.startsWith("/onboarding");
-  const isAppRoute = nextUrl.pathname.startsWith("/app");
+  const isSuperAdminRoute = pathname.startsWith("/superadmin");
+  const isOnboardingRoute = pathname.startsWith("/onboarding");
+  const isAppRoute = pathname.startsWith("/app");
+  const isPublic = isPublicPath(pathname);
 
   if (!isLoggedIn && (isAppRoute || isSuperAdminRoute || isOnboardingRoute)) {
     return NextResponse.redirect(new URL("/login", nextUrl));
   }
 
-  if (isLoggedIn && (nextUrl.pathname === "/" || isAuthRoute)) {
+  if (!isLoggedIn && isPublic) {
+    return NextResponse.next();
+  }
+
+  if (isLoggedIn && (pathname === "/" || isAuthRoute)) {
     if (role === "SUPERADMIN") {
       return NextResponse.redirect(new URL("/superadmin", nextUrl));
     }

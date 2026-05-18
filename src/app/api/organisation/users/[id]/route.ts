@@ -3,7 +3,7 @@ import { handleApiError } from "@/lib/tenant/context";
 import { getTenantApiContext } from "@/lib/rbac/api-guard";
 import { P } from "@/lib/rbac/checks";
 import * as repo from "@/repositories/organisation/users";
-import { orgUserSchema } from "@/validators/organisation";
+import { orgUserUpdateSchema } from "@/validators/organisation";
 import { z } from "zod";
 
 type Params = { params: Promise<{ id: string }> };
@@ -12,7 +12,7 @@ export async function PATCH(req: Request, { params }: Params) {
   try {
     const { tenantId } = await getTenantApiContext(P.organisation.users.update, { req });
     const { id } = await params;
-    const body = orgUserSchema.partial().parse(await req.json());
+    const body = orgUserUpdateSchema.parse(await req.json());
     const user = await repo.updateOrgUser(tenantId, id, body);
     return apiSuccess(user);
   } catch (error) {

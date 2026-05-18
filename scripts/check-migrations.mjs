@@ -25,6 +25,8 @@ const checks = [
   { label: "005 onboarding_completed_at", table: "tenants", column: "onboarding_completed_at" },
   { label: "006 auth_rate_limits", table: "auth_rate_limits" },
   { label: "006 refresh_tokens", table: "refresh_tokens" },
+  { label: "009 plans", table: "plans" },
+  { label: "009 cms_pages", table: "cms_pages" },
 ];
 
 let failed = 0;

@@ -27,14 +27,21 @@ export default function UsersPage() {
     try {
       if (editing) {
         const { password, ...rest } = data;
-        await update.mutateAsync({ id: editing.id, ...rest, ...(password ? { password } : {}) });
+        const payload = {
+          id: editing.id,
+          ...rest,
+          ...(typeof password === "string" && password.length >= 8 ? { password } : {}),
+        };
+        await update.mutateAsync(payload);
         toast.success("User updated");
       } else {
         await create.mutateAsync(data);
         toast.success("User created");
       }
+      setOpen(false);
+      setEditing(null);
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error((e as Error).message ?? "Failed to save user");
       throw e;
     }
   };
@@ -111,7 +118,19 @@ export default function UsersPage() {
         </table>
       </div>
 
-      <UserFormDialog open={open} onClose={()=>setOpen(false)} onSubmit={handleSubmit} initial={editing} branches={branches} designations={designations} roles={roles} />
+      <UserFormDialog
+        open={open}
+        onClose={() => {
+          setOpen(false);
+          setEditing(null);
+        }}
+        onSubmit={handleSubmit}
+        initial={editing}
+        branches={branches}
+        designations={designations}
+        roles={roles}
+        isSubmitting={create.isPending || update.isPending}
+      />
     </div>
   );
 }

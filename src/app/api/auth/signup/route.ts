@@ -12,6 +12,7 @@ const schema = z.object({
   password: z.string().min(8),
   channel: z.enum(["email", "sms"]),
   otp: z.string().length(6),
+  planSlug: z.string().min(2),
 });
 
 export async function POST(req: Request) {
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
       email: body.email,
       phone: body.phone,
       password: body.password,
+      planSlug: body.planSlug,
     });
 
     return apiSuccess({ created: true }, undefined, 201);

@@ -3,7 +3,7 @@ import { handleApiError } from "@/lib/tenant/context";
 import { getTenantApiContext } from "@/lib/rbac/api-guard";
 import { P } from "@/lib/rbac/checks";
 import * as repo from "@/repositories/organisation/users";
-import { orgUserSchema } from "@/validators/organisation";
+import { orgUserCreateSchema } from "@/validators/organisation";
 import { z } from "zod";
 
 export async function GET(req: Request) {
@@ -22,19 +22,16 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const { tenantId } = await getTenantApiContext(P.organisation.users.create, { req });
-    const body = orgUserSchema.parse(await req.json());
-    if (!body.password) {
-      return apiError("Password is required for new users", 400, "VALIDATION_ERROR");
-    }
+    const body = orgUserCreateSchema.parse(await req.json());
     const user = await repo.createOrgUser(tenantId, {
       name: body.name,
       email: body.email,
       password: body.password,
       userCode: body.userCode,
-      designationId: body.designationId,
+      designationId: body.designationId ?? undefined,
       department: body.department,
-      branchId: body.branchId,
-      roleId: body.roleId,
+      branchId: body.branchId ?? undefined,
+      roleId: body.roleId ?? undefined,
       status: body.status,
     });
     return apiSuccess(user, undefined, 201);
