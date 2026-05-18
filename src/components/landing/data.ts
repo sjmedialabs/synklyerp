@@ -165,6 +165,60 @@ export const REVIEWS = [
   { platform: "Trustpilot", rating: "4.9/5", text: "Onboarding and support exceeded expectations." },
 ];
 
+export const PRICING_PLANS = [
+  {
+    id: "trial",
+    name: "Trial",
+    price: "₹0",
+    period: "14 days",
+    description: "Evaluate SynklyERP with full module access for your team.",
+    highlighted: false,
+    cta: "Start free trial",
+    href: "/signup",
+    features: [
+      "Up to 10 users",
+      "All core modules",
+      "Onboarding wizard",
+      "Email & OTP login",
+      "Community support",
+    ],
+  },
+  {
+    id: "business",
+    name: "Business",
+    price: "₹499",
+    period: "per user / month",
+    description: "For growing SMBs running product, service, or hybrid operations.",
+    highlighted: true,
+    cta: "Get started",
+    href: "/signup",
+    features: [
+      "Unlimited branches",
+      "RBAC & audit logs",
+      "Module activation by business type",
+      "HR, Finance, Sales, Projects",
+      "Priority email support",
+    ],
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    price: "Custom",
+    period: "annual contract",
+    description: "For multi-entity organisations with advanced compliance needs.",
+    highlighted: false,
+    cta: "Contact sales",
+    href: "/signup",
+    features: [
+      "Dedicated tenant isolation",
+      "Custom roles & permissions",
+      "SSO & security review",
+      "Implementation assistance",
+      "SLA & phone support",
+    ],
+  },
+] as const;
+
 export const FOOTER_COLUMNS = [
   {
     title: "Platform",
@@ -176,7 +230,12 @@ export const FOOTER_COLUMNS = [
   },
   {
     title: "Resources",
-    links: ["Documentation", "API reference", "Security", "Status page"],
+    links: [
+      { label: "Documentation", href: "/login" },
+      { label: "API reference", href: "/api-docs" },
+      { label: "Security", href: "/login" },
+      { label: "Status page", href: "/login" },
+    ],
   },
   {
     title: "Company",

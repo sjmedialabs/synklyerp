@@ -2,7 +2,9 @@
 
 import { Construction, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { PageHeader } from "./page-header";
+import type { ErpModuleKey } from "@/constants/onboarding";
 
 type ModulePlaceholderProps = {
   title: string;
@@ -19,18 +21,30 @@ export function ModulePlaceholder({
   status = "pending",
   phase = 5,
   features = [],
-  builtModules = [
-    { label: "Branches", href: "/app/organisation/branches" },
-    { label: "Employees", href: "/app/hr/employees" },
-    { label: "Service Catalog", href: "/app/finance/services" },
-    { label: "Leads", href: "/app/sales/leads" },
-    { label: "Projects", href: "/app/projects/bucket" },
-  ],
+  builtModules,
 }: ModulePlaceholderProps) {
+  const { data: session } = useSession();
+  const enabled = new Set(session?.user?.enabledModules ?? []);
+
+  const defaultBuiltModules = [
+    { label: "Branches", href: "/app/organisation/branches", module: null as ErpModuleKey | null },
+    { label: "Employees", href: "/app/hr/employees", module: "HR" as const },
+    { label: "Payroll", href: "/app/hr/payroll", module: "HR" as const },
+    { label: "Service Catalog", href: "/app/finance/services", module: "Finance" as const },
+    { label: "Leads", href: "/app/sales/leads", module: "Sales" as const },
+    { label: "Projects", href: "/app/projects/bucket", module: "Projects" as const },
+  ];
+
+  const liveModules =
+    builtModules ??
+    defaultBuiltModules
+      .filter((m) => !m.module || enabled.has(m.module))
+      .map(({ label, href }) => ({ label, href }));
+
   const defaultDescription =
     status === "scope"
       ? "Defined in the ERP scope document. Implementation is scheduled for a future phase."
-      : `This module is on the Phase ${phase} roadmap. Core platform services (auth, RBAC, notifications, audit logs) are active.`;
+      : `This screen is on the Phase ${phase} roadmap. Core platform services (auth, RBAC, modules, audit logs) are active.`;
 
   return (
     <div>
@@ -69,7 +83,7 @@ export function ModulePlaceholder({
         <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-6 dark:border-indigo-900/50 dark:bg-indigo-950/20">
           <h3 className="mb-3 text-lg font-semibold text-slate-900 dark:text-white">Live modules you can use now</h3>
           <ul className="space-y-2">
-            {builtModules.map((m) => (
+            {liveModules.map((m) => (
               <li key={m.href}>
                 <Link
                   href={m.href}

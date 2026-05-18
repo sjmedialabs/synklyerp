@@ -7,8 +7,12 @@ import { toast } from "sonner";
 import { Building2, User, Mail, Smartphone, Lock } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { OtpInput } from "@/components/auth/otp-input";
+import { PasswordStrengthMeter } from "@/components/auth/password-strength";
+import { TurnstileWidget } from "@/components/auth/turnstile";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { evaluatePassword } from "@/lib/auth/password-policy";
+import { useOtpResend } from "@/hooks/auth/use-otp-resend";
 
 type SignupChannel = "email" | "sms";
 
@@ -19,6 +23,8 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [otp, setOtp] = useState("");
   const [devHint, setDevHint] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const { seconds, canResend, startCooldown } = useOtpResend();
   const [form, setForm] = useState({
     companyName: "",
     fullName: "",
@@ -38,8 +44,9 @@ export default function SignupPage() {
       toast.error("Enter your mobile number");
       return;
     }
-    if (form.password.length < 8) {
-      toast.error("Password must be at least 8 characters");
+    const pw = evaluatePassword(form.password);
+    if (!pw.valid) {
+      toast.error(pw.hints[0] ?? pw.message);
       return;
     }
 
@@ -48,12 +55,13 @@ export default function SignupPage() {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel, identifier, purpose: "signup" }),
+        body: JSON.stringify({ channel, identifier, purpose: "signup", captchaToken: captchaToken || undefined }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error?.message ?? "Failed to send OTP");
       setStep("verify");
       if (json.data?.devCode) setDevHint(json.data.devCode);
+      startCooldown(json.data?.resendAfterSeconds ?? 60);
       toast.success(channel === "email" ? "Verification code sent to your email" : "Code sent via SMS");
     } catch (e) {
       toast.error((e as Error).message);
@@ -203,7 +211,10 @@ export default function SignupPage() {
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
               />
             </div>
+            <PasswordStrengthMeter password={form.password} />
           </div>
+
+          <TurnstileWidget onToken={setCaptchaToken} onExpire={() => setCaptchaToken("")} />
 
           <Button
             type="submit"
@@ -220,6 +231,14 @@ export default function SignupPage() {
             Enter the code sent to <span className="font-medium text-slate-900">{identifier}</span>
           </p>
           <OtpInput value={otp} onChange={setOtp} />
+          <button
+            type="button"
+            className="text-sm text-slate-500 hover:text-[#1B1538] disabled:opacity-50"
+            disabled={loading || !canResend}
+            onClick={sendOtp}
+          >
+            {canResend ? "Resend code" : `Resend in ${seconds}s`}
+          </button>
           {devHint && (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
               Dev mode OTP: <strong>{devHint}</strong>

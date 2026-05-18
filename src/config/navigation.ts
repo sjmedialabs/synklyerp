@@ -55,7 +55,7 @@ export const APP_NAVIGATION: NavItem[] = [
     children: [
       { id: "employees", label: "Employee Management", href: "/app/hr/employees", status: "built" },
       { id: "attendance", label: "Attendance & Leave", href: "/app/hr/attendance", status: "built" },
-      { id: "payroll", label: "Payroll & Compensation", href: "/app/hr/payroll", status: "scope" },
+      { id: "payroll", label: "Payroll & Compensation", href: "/app/hr/payroll", status: "built" },
       { id: "performance", label: "Performance & Recruitment", href: "/app/hr/performance", status: "scope" },
     ],
   },

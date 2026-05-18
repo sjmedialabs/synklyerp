@@ -68,6 +68,16 @@ export function handleApiError(error: unknown) {
     if (error.message === "NOT_FOUND") {
       return { status: 404, code: "NOT_FOUND", message: "Resource not found" };
     }
+    if (error.message === "ONBOARDING_LOCKED") {
+      return { status: 409, code: "ONBOARDING_LOCKED", message: "Onboarding configuration is locked" };
+    }
+    if (error.message === "MODULE_DISABLED") {
+      return {
+        status: 403,
+        code: "MODULE_DISABLED",
+        message: "This module is not enabled for your workspace",
+      };
+    }
   }
   return { status: 500, code: "INTERNAL_ERROR", message: "Internal server error" };
 }

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { secureSignOut } from "@/lib/auth/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, Search, ChevronDown, X } from "lucide-react";
 import { AppSidebar } from "@/components/layout/app-sidebar";
@@ -79,7 +80,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <NotificationCenter />
             <button
               type="button"
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={() => secureSignOut()}
               className="flex items-center gap-2 hover:opacity-80"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-medium text-white">

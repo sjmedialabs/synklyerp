@@ -2,13 +2,16 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { getSession, signIn } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 import { Mail, Lock, Smartphone } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { OtpInput } from "@/components/auth/otp-input";
+import { TurnstileWidget } from "@/components/auth/turnstile";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { bootstrapAuthSession, completeAuthRedirect } from "@/lib/auth/client";
+import { useOtpResend } from "@/hooks/auth/use-otp-resend";
 
 type IdentifierKind = "email" | "phone" | null;
 
@@ -26,10 +29,13 @@ function detectIdentifierKind(value: string): IdentifierKind {
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
   const [devHint, setDevHint] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const { seconds, canResend, startCooldown } = useOtpResend();
 
   const kind = useMemo(() => detectIdentifierKind(identifier), [identifier]);
 
@@ -37,6 +43,7 @@ export default function LoginPage() {
     setOtpSent(false);
     setOtp("");
     setDevHint("");
+    setCaptchaToken("");
   };
 
   const handleIdentifierChange = (value: string) => {
@@ -54,12 +61,18 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel: "sms", identifier: phone.trim(), purpose: "login" }),
+        body: JSON.stringify({
+          channel: "sms",
+          identifier: phone.trim(),
+          purpose: "login",
+          captchaToken: captchaToken || undefined,
+        }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error?.message ?? "Failed to send OTP");
       setOtpSent(true);
       if (json.data?.devCode) setDevHint(json.data.devCode);
+      startCooldown(json.data?.resendAfterSeconds ?? json.error?.details?.retryAfterSeconds ?? 60);
       toast.success("Verification code sent via SMS");
     } catch (e) {
       toast.error((e as Error).message);
@@ -68,9 +81,9 @@ export default function LoginPage() {
     }
   };
 
-  const completeLogin = async () => {
-    const session = await getSession();
-    window.location.href = session?.user?.role === "SUPERADMIN" ? "/superadmin" : "/app";
+  const finishLogin = async () => {
+    await bootstrapAuthSession(rememberMe);
+    await completeAuthRedirect();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,13 +99,14 @@ export default function LoginPage() {
         const res = await signIn("credentials", {
           email: identifier.trim().toLowerCase(),
           password,
+          rememberMe: String(rememberMe),
           redirect: false,
         });
         if (res?.error) {
-          toast.error("Invalid email or password");
+          toast.error("Invalid email or password, or account temporarily locked");
           return;
         }
-        await completeLogin();
+        await finishLogin();
         return;
       }
 
@@ -106,24 +120,21 @@ export default function LoginPage() {
         phone,
         otp,
         channel: "sms",
+        rememberMe: String(rememberMe),
         redirect: false,
       });
       if (res?.error) {
         toast.error("Invalid or expired code");
         return;
       }
-      await completeLogin();
+      await finishLogin();
     } finally {
       setLoading(false);
     }
   };
 
   const submitLabel =
-    kind === "email"
-      ? "Sign in"
-      : otpSent
-        ? "Verify & sign in"
-        : "Send verification code";
+    kind === "email" ? "Sign in" : otpSent ? "Verify & sign in" : "Send verification code";
 
   return (
     <AuthShell
@@ -197,16 +208,30 @@ export default function LoginPage() {
                 )}
                 <button
                   type="button"
-                  className="text-sm text-slate-500 hover:text-[#1B1538]"
+                  className="text-sm text-slate-500 hover:text-[#1B1538] disabled:opacity-50"
                   onClick={() => sendOtp(identifier.trim().replace(/\s/g, ""))}
-                  disabled={loading}
+                  disabled={loading || !canResend}
                 >
-                  Resend code
+                  {canResend ? "Resend code" : `Resend in ${seconds}s`}
                 </button>
               </>
             )}
           </div>
         )}
+
+        {(kind === "phone" && !otpSent) || kind === "email" ? (
+          <TurnstileWidget onToken={setCaptchaToken} onExpire={() => setCaptchaToken("")} />
+        ) : null}
+
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="rounded border-slate-300"
+          />
+          Remember me for 30 days
+        </label>
 
         <Button
           type="submit"
@@ -224,3 +249,4 @@ export default function LoginPage() {
     </AuthShell>
   );
 }
+

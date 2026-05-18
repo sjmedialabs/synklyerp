@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashPassword } from "@/lib/auth/password";
+import { syncRolePermissionsForTenant } from "@/lib/rbac/sync-tenant-roles";
 
 export async function findUserByPhone(phone: string) {
   const supabase = createAdminClient();
@@ -80,6 +81,8 @@ export async function createTenantWithAdmin(input: {
     .select()
     .single();
   if (userErr) throw userErr;
+
+  await syncRolePermissionsForTenant(tenant.id);
 
   return { tenant, user };
 }

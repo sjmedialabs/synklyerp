@@ -2,6 +2,7 @@ import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { DEFAULT_DESIGNATIONS } from "../src/constants/roles";
+import { syncRolePermissionsForTenant } from "../src/lib/rbac/sync-tenant-roles";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -26,6 +27,7 @@ async function main() {
     status: "ACTIVE",
   }, { onConflict: "email" });
 
+  const now = new Date().toISOString();
   const { data: tenant } = await supabase
     .from("tenants")
     .upsert({
@@ -33,15 +35,26 @@ async function main() {
       name: "Synkly Demo Corp",
       business_type: "Hybrid",
       industry_subtype: "IT Services",
+      employee_count: "11-50",
+      business_size: "SMB",
       plan: "ENTERPRISE",
       contact_name: "John Doe",
       contact_email: "admin@synklydemo.io",
       status: "ACTIVE",
+      onboarding_completed_at: now,
+      onboarding_locked: true,
     }, { onConflict: "id" })
     .select()
     .single();
 
   if (!tenant) throw new Error("Tenant seed failed");
+
+  for (const module_key of ["HR", "Finance", "Sales", "Projects", "Operations", "Marketing"]) {
+    await supabase.from("tenant_modules").upsert(
+      { tenant_id: tenant.id, module_key, is_active: true },
+      { onConflict: "tenant_id,module_key" }
+    );
+  }
 
   const { data: adminRole } = await supabase
     .from("roles")
@@ -87,14 +100,7 @@ async function main() {
   const { data: adminUser } = await supabase.from("users").select("id").eq("email", "admin@synklydemo.io").single();
   const { data: superUser } = await supabase.from("users").select("id").eq("email", superEmail).single();
 
-  const perms = [
-    { module: "organisation", feature: "branches", action: "read" },
-    { module: "hr", feature: "employees", action: "write" },
-    { module: "finance", feature: "services", action: "read" },
-  ];
-  for (const p of perms) {
-    await supabase.from("permissions").upsert(p, { onConflict: "module,feature,action" });
-  }
+  await syncRolePermissionsForTenant(tenant.id);
 
   if (adminUser?.id) {
     for (const n of [

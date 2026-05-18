@@ -1,11 +1,12 @@
 import { apiError, apiSuccess } from "@/lib/api/response";
-import { handleApiError, requireTenantSession, resolveTenantId } from "@/lib/tenant/context";
+import { handleApiError } from "@/lib/tenant/context";
+import { getTenantApiContext } from "@/lib/rbac/api-guard";
+import { P } from "@/lib/rbac/checks";
 import { getUserStats } from "@/repositories/organisation/users";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const ctx = await requireTenantSession();
-    const tenantId = await resolveTenantId(ctx);
+    const { tenantId } = await getTenantApiContext(P.organisation.users.read, { req });
     const stats = await getUserStats(tenantId);
     return apiSuccess(stats);
   } catch (error) {

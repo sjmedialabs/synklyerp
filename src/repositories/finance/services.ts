@@ -2,6 +2,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { mapService } from "@/lib/mappers/modules";
 import type { PaginatedQuery } from "@/types/api";
 
+export async function getServiceStats(tenantId: string) {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("services")
+    .select("status")
+    .eq("tenant_id", tenantId)
+    .is("deleted_at", null);
+  const list = data ?? [];
+  return {
+    total: list.length,
+    active: list.filter((r) => (r.status as string) === "ACTIVE").length,
+  };
+}
+
 export async function listServices(tenantId: string, params: PaginatedQuery) {
   const supabase = createAdminClient();
   const page = params.page ?? 1;

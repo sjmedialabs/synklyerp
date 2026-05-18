@@ -7,8 +7,12 @@ import { toast } from "sonner";
 import { Mail, Lock } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { OtpInput } from "@/components/auth/otp-input";
+import { PasswordStrengthMeter } from "@/components/auth/password-strength";
+import { TurnstileWidget } from "@/components/auth/turnstile";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { evaluatePassword } from "@/lib/auth/password-policy";
+import { useOtpResend } from "@/hooks/auth/use-otp-resend";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -18,6 +22,8 @@ export default function ForgotPasswordPage() {
   const [step, setStep] = useState<"email" | "reset">("email");
   const [loading, setLoading] = useState(false);
   const [devHint, setDevHint] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const { seconds, canResend, startCooldown } = useOtpResend();
 
   const sendOtp = async () => {
     if (!email) {
@@ -29,12 +35,18 @@ export default function ForgotPasswordPage() {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel: "email", identifier: email, purpose: "reset" }),
+        body: JSON.stringify({
+          channel: "email",
+          identifier: email,
+          purpose: "reset",
+          captchaToken: captchaToken || undefined,
+        }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error?.message ?? "Failed to send code");
       setStep("reset");
       if (json.data?.devCode) setDevHint(json.data.devCode);
+      startCooldown(json.data?.resendAfterSeconds ?? 60);
       toast.success("Reset code sent to your email");
     } catch (e) {
       toast.error((e as Error).message);
@@ -45,8 +57,9 @@ export default function ForgotPasswordPage() {
 
   const resetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters");
+    const pw = evaluatePassword(password);
+    if (!pw.valid) {
+      toast.error(pw.hints[0] ?? pw.message);
       return;
     }
     setLoading(true);
@@ -102,6 +115,7 @@ export default function ForgotPasswordPage() {
               />
             </div>
           </div>
+          <TurnstileWidget onToken={setCaptchaToken} onExpire={() => setCaptchaToken("")} />
           <Button
             type="submit"
             disabled={loading}
@@ -117,6 +131,14 @@ export default function ForgotPasswordPage() {
             Code sent to <span className="font-medium text-slate-900">{email}</span>
           </p>
           <OtpInput value={otp} onChange={setOtp} label="Reset code" />
+          <button
+            type="button"
+            className="text-sm text-slate-500 hover:text-[#1B1538] disabled:opacity-50"
+            disabled={loading || !canResend}
+            onClick={sendOtp}
+          >
+            {canResend ? "Resend code" : `Resend in ${seconds}s`}
+          </button>
           {devHint && (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
               Dev mode OTP: <strong>{devHint}</strong>
@@ -136,6 +158,7 @@ export default function ForgotPasswordPage() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
+            <PasswordStrengthMeter password={password} />
           </div>
           <Button
             type="submit"

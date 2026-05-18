@@ -4,7 +4,7 @@ import * as repo from "@/repositories/enterprise/notifications";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function PATCH(_req: Request, { params }: Params) {
+export async function PATCH(req: Request, { params }: Params) {
   try {
     const ctx = await requireSession();
     const { id } = await params;

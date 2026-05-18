@@ -1,5 +1,7 @@
 import { apiError, apiSuccess } from "@/lib/api/response";
-import { handleApiError, requireTenantSession, resolveTenantId } from "@/lib/tenant/context";
+import { handleApiError } from "@/lib/tenant/context";
+import { getTenantApiContext } from "@/lib/rbac/api-guard";
+import { P } from "@/lib/rbac/checks";
 import * as repo from "@/repositories/finance/packages";
 import { servicePackageSchema } from "@/validators/finance";
 import { z } from "zod";
@@ -8,8 +10,7 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, { params }: Params) {
   try {
-    const ctx = await requireTenantSession();
-    const tenantId = await resolveTenantId(ctx);
+    const { tenantId } = await getTenantApiContext(P.finance.packages.update, { req });
     const { id } = await params;
     return apiSuccess(await repo.updateServicePackage(tenantId, id, servicePackageSchema.partial().parse(await req.json())));
   } catch (error) {
@@ -19,10 +20,9 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(req: Request, { params }: Params) {
   try {
-    const ctx = await requireTenantSession();
-    const tenantId = await resolveTenantId(ctx);
+    const { tenantId } = await getTenantApiContext(P.finance.packages.delete, { req });
     const { id } = await params;
     return apiSuccess(await repo.deleteServicePackage(tenantId, id));
   } catch (error) {

@@ -18,6 +18,8 @@ import {
   FOOTER_COLUMNS,
 } from "./data";
 import { FeatureMock } from "./ui-mockups";
+import { PricingSection } from "./pricing-section";
+import { StickyCta } from "./sticky-cta";
 
 const BRAND_NAVY = "#1B1538";
 const BRAND_LAVENDER = "#E8E4F5";
@@ -48,13 +50,13 @@ export function LandingPage() {
       >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2">
-            <motion.div
+            <div
               className={`flex h-9 w-9 items-center justify-center rounded-lg text-lg font-bold ${
                 onDarkHeader ? "bg-white text-[#1B1538]" : "bg-[#1B1538] text-white"
               }`}
             >
               S
-            </motion.div>
+            </div>
             <span className={`text-xl font-bold tracking-tight ${onDarkHeader ? "text-white" : "text-[#1B1538]"}`}>
               SynklyERP
             </span>
@@ -152,10 +154,10 @@ export function LandingPage() {
               SynklyERP unifies HR, Finance, Organisation, Sales, and Projects in one multi-tenant platform — built on real PostgreSQL, ready for enterprise scale.
             </p>
             <Link
-              href="/login"
+              href="/signup"
               className="mt-8 inline-flex items-center rounded-full bg-white px-8 py-3.5 text-base font-semibold text-[#1B1538] shadow-lg transition hover:bg-violet-50"
             >
-              Get started
+              Start free trial
             </Link>
           </motion.div>
         </div>
@@ -411,19 +413,32 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section id="pricing" className="py-20" style={{ backgroundColor: BRAND_LAVENDER }}>
+      <PricingSection />
+
+      <section className="py-20" style={{ backgroundColor: BRAND_LAVENDER }}>
         <div className="mx-auto max-w-3xl px-4 text-center">
           <h2 className="text-3xl font-bold text-[#1B1538] sm:text-4xl">Ready to unify your enterprise?</h2>
-          <p className="mt-4 text-lg text-slate-600">Start with a 14-day trial. No credit card required.</p>
-          <Link
-            href="/login"
-            className="mt-8 inline-flex rounded-full bg-[#1B1538] px-10 py-4 text-lg font-semibold text-white shadow-lg transition hover:bg-[#2a2160]"
-          >
-            Get started free
-          </Link>
+          <p className="mt-4 text-lg text-slate-600">
+            Join teams who run HR, Finance, and Sales from one secure workspace.
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              href="/signup"
+              className="inline-flex rounded-full bg-[#1B1538] px-10 py-4 text-lg font-semibold text-white shadow-lg transition hover:bg-[#2a2160]"
+            >
+              Start free trial
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex rounded-full border-2 border-[#1B1538] px-10 py-4 text-lg font-semibold text-[#1B1538] transition hover:bg-[#1B1538] hover:text-white"
+            >
+              Log in
+            </Link>
+          </div>
         </div>
       </section>
+
+      <StickyCta />
 
       {/* Footer */}
       <footer id="about" className="py-16 text-white" style={{ backgroundColor: BRAND_NAVY }}>
@@ -440,13 +455,17 @@ export function LandingPage() {
               <div key={col.title}>
                 <h4 className="font-semibold text-white">{col.title}</h4>
                 <ul className="mt-4 space-y-2 text-sm text-violet-300">
-                  {col.links.map((link) => (
-                    <li key={link}>
-                      <Link href="/login" className="hover:text-white">
-                        {link}
-                      </Link>
-                    </li>
-                  ))}
+                  {col.links.map((link) => {
+                    const label = typeof link === "string" ? link : link.label;
+                    const href = typeof link === "string" ? "/login" : link.href;
+                    return (
+                      <li key={label}>
+                        <Link href={href} className="hover:text-white">
+                          {label}
+                        </Link>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}

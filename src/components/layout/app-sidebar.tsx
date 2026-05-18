@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { APP_NAVIGATION, ACCOUNT_NAV, type NavItem } from "@/config/navigation";
+import { ACCOUNT_NAV, type NavItem } from "@/config/navigation";
+import { filterNavigation } from "@/lib/navigation/filter-nav";
+import { usePermissions } from "@/hooks/tenant/use-permissions";
 
 function NavLink({ item, depth = 0, collapsed }: { item: NavItem; depth?: number; collapsed?: boolean }) {
   const pathname = usePathname();
@@ -59,9 +62,17 @@ function NavLink({ item, depth = 0, collapsed }: { item: NavItem; depth?: number
 }
 
 export function AppSidebar({ collapsed }: { collapsed: boolean }) {
+  const { data: session } = useSession();
+  const { canAccessNavId, isLoading: permsLoading } = usePermissions();
+  const navigation = useMemo(() => {
+    const modules = session?.user?.enabledModules ?? [];
+    if (permsLoading) return filterNavigation(modules.length ? modules : []);
+    return filterNavigation(modules.length ? modules : [], canAccessNavId);
+  }, [session?.user?.enabledModules, canAccessNavId, permsLoading]);
+
   return (
     <nav className="flex flex-1 flex-col gap-1 overflow-y-auto py-4 px-2">
-      {APP_NAVIGATION.map((item) => (
+      {navigation.map((item) => (
         <NavLink key={item.id} item={item} collapsed={collapsed} />
       ))}
       <div className="mt-auto border-t border-slate-200 pt-4 dark:border-slate-800">

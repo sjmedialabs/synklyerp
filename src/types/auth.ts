@@ -10,6 +10,8 @@ declare module "next-auth" {
       tenantId?: string | null;
       tenantName?: string | null;
       businessType?: string | null;
+      onboardingCompleted?: boolean;
+      enabledModules?: string[];
     } & DefaultSession["user"];
   }
 
@@ -18,5 +20,14 @@ declare module "next-auth" {
     tenantId?: string | null;
     tenantName?: string | null;
     businessType?: string | null;
+    onboardingCompleted?: boolean;
+    enabledModules?: string[];
+    rememberMe?: boolean;
+  }
+}
+
+declare module "@auth/core/jwt" {
+  interface JWT {
+    rememberMe?: boolean;
   }
 }

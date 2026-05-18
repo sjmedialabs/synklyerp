@@ -27,3 +27,8 @@ export const attendanceSchema = z.object({
   otHours: z.number().min(0).optional(),
   flags: z.string().optional(),
 });
+
+export const payrollCycleSchema = z.object({
+  month: z.number().int().min(1).max(12),
+  year: z.number().int().min(2020).max(2100),
+});

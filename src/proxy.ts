@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { resolveModuleForAppPath } from "@/lib/modules/path-access";
 
 export default auth((req) => {
   const { nextUrl } = req;
@@ -23,6 +24,16 @@ export default auth((req) => {
     if (role === "SUPERADMIN") {
       return NextResponse.redirect(new URL("/superadmin", nextUrl));
     }
+    const onboardingDone = req.auth?.user?.onboardingCompleted;
+    return NextResponse.redirect(new URL(onboardingDone ? "/app" : "/onboarding", nextUrl));
+  }
+
+  const onboardingDone = req.auth?.user?.onboardingCompleted;
+  if (isLoggedIn && role !== "SUPERADMIN" && isAppRoute && onboardingDone === false) {
+    return NextResponse.redirect(new URL("/onboarding", nextUrl));
+  }
+
+  if (isLoggedIn && isOnboardingRoute && onboardingDone === true) {
     return NextResponse.redirect(new URL("/app", nextUrl));
   }
 
@@ -32,6 +43,18 @@ export default auth((req) => {
 
   if (isAppRoute && role === "SUPERADMIN") {
     return NextResponse.redirect(new URL("/superadmin", nextUrl));
+  }
+
+  if (isLoggedIn && isAppRoute && role !== "SUPERADMIN" && onboardingDone !== false) {
+    const requiredModule = resolveModuleForAppPath(nextUrl.pathname);
+    if (requiredModule) {
+      const enabled = req.auth?.user?.enabledModules ?? [];
+      if (!enabled.includes(requiredModule)) {
+        const dest = new URL("/app/module-unavailable", nextUrl);
+        dest.searchParams.set("module", requiredModule);
+        return NextResponse.redirect(dest);
+      }
+    }
   }
 
   return NextResponse.next();

@@ -1,13 +1,14 @@
 import { apiError, apiSuccess, parsePagination, paginationMeta } from "@/lib/api/response";
-import { handleApiError, requireTenantSession, resolveTenantId } from "@/lib/tenant/context";
+import { handleApiError } from "@/lib/tenant/context";
+import { getTenantApiContext } from "@/lib/rbac/api-guard";
+import { P } from "@/lib/rbac/checks";
 import * as repo from "@/repositories/projects";
 import { projectSchema } from "@/validators/projects";
 import { z } from "zod";
 
 export async function GET(req: Request) {
   try {
-    const ctx = await requireTenantSession();
-    const tenantId = await resolveTenantId(ctx);
+    const { tenantId } = await getTenantApiContext(P.projects.projects.read, { req });
     const url = new URL(req.url);
     const params = parsePagination(url.searchParams);
     const status = url.searchParams.get("status") ?? undefined;
@@ -21,8 +22,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const ctx = await requireTenantSession();
-    const tenantId = await resolveTenantId(ctx);
+    const { tenantId } = await getTenantApiContext(P.projects.projects.create, { req });
     const body = projectSchema.parse(await req.json());
     return apiSuccess(await repo.createProject(tenantId, body), undefined, 201);
   } catch (error) {
