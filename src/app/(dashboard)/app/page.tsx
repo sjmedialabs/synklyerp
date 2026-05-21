@@ -48,6 +48,7 @@ export default function AppDashboardPage() {
           <WelcomeBanner
             tenantName={config.tenantName}
             businessType={config.businessType}
+            industrySubtype={config.industrySubtype}
             kpiCount={config.kpis.length}
             moduleCount={enabledModuleCount}
           />

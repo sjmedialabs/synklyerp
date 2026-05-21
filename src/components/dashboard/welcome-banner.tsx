@@ -7,11 +7,18 @@ import { LayoutDashboard } from "lucide-react";
 type WelcomeBannerProps = {
   tenantName: string | null;
   businessType: string;
+  industrySubtype?: string | null;
   kpiCount: number;
   moduleCount: number;
 };
 
-export function WelcomeBanner({ tenantName, businessType, kpiCount, moduleCount }: WelcomeBannerProps) {
+export function WelcomeBanner({
+  tenantName,
+  businessType,
+  industrySubtype,
+  kpiCount,
+  moduleCount,
+}: WelcomeBannerProps) {
   const { data: session } = useSession();
   const firstName = session?.user?.name?.split(" ")[0] ?? "there";
 
@@ -27,7 +34,9 @@ export function WelcomeBanner({ tenantName, businessType, kpiCount, moduleCount 
             Good day, {firstName}
           </h2>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-            {businessType}-based ERP · {moduleCount} active modules · {kpiCount} metrics on your dashboard
+            {businessType}-based
+            {industrySubtype ? ` · ${industrySubtype}` : ""} · {moduleCount} active modules · {kpiCount} metrics on
+            your dashboard
           </p>
         </div>
         <div className="flex shrink-0 gap-2">

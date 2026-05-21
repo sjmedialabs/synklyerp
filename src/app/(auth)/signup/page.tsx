@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { toast } from "sonner";
-import { Building2, User, Mail, Smartphone, Lock } from "lucide-react";
+import { Building2, User, Mail, Smartphone, Lock, Eye, EyeOff } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { OtpInput } from "@/components/auth/otp-input";
 import { PasswordStrengthMeter } from "@/components/auth/password-strength";
-import { TurnstileWidget } from "@/components/auth/turnstile";
+import { TurnstileWidget, captchaEnabled } from "@/components/auth/turnstile";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { evaluatePassword } from "@/lib/auth/password-policy";
+import { bootstrapAuthSession, completeAuthRedirect } from "@/lib/auth/client";
 import { useOtpResend } from "@/hooks/auth/use-otp-resend";
 
 type SignupChannel = "email" | "sms";
@@ -28,7 +29,6 @@ type PublicPlan = {
 };
 
 export default function SignupPage() {
-  const router = useRouter();
   const [channel, setChannel] = useState<SignupChannel>("email");
   const [step, setStep] = useState<SignupStep>("plan");
   const [plans, setPlans] = useState<PublicPlan[]>([]);
@@ -37,6 +37,7 @@ export default function SignupPage() {
   const [otp, setOtp] = useState("");
   const [devHint, setDevHint] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const { seconds, canResend, startCooldown } = useOtpResend();
   const [form, setForm] = useState({
     companyName: "",
@@ -47,6 +48,17 @@ export default function SignupPage() {
   });
 
   const identifier = channel === "email" ? form.email : form.phone;
+  const captchaRequired = captchaEnabled();
+  const captchaOk = !captchaRequired || !!captchaToken;
+  const passwordCheck = useMemo(() => evaluatePassword(form.password), [form.password]);
+
+  const detailsValid =
+    !!form.companyName.trim() &&
+    !!form.fullName.trim() &&
+    !!form.email.trim() &&
+    (channel === "sms" ? !!form.phone.trim() : true) &&
+    passwordCheck.valid &&
+    captchaOk;
 
   useEffect(() => {
     const fromUrl = new URLSearchParams(window.location.search).get("plan");
@@ -72,17 +84,8 @@ export default function SignupPage() {
       toast.error("Select a subscription plan");
       return;
     }
-    if (!form.companyName || !form.fullName || !form.email || !form.password) {
-      toast.error("Fill in all required fields");
-      return;
-    }
-    if (channel === "sms" && !form.phone) {
-      toast.error("Enter your mobile number");
-      return;
-    }
-    const pw = evaluatePassword(form.password);
-    if (!pw.valid) {
-      toast.error(pw.hints[0] ?? pw.message);
+    if (!detailsValid) {
+      toast.error(passwordCheck.hints[0] ?? passwordCheck.message ?? "Fill in all required fields");
       return;
     }
 
@@ -120,8 +123,22 @@ export default function SignupPage() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error?.message ?? "Signup failed");
-      toast.success("Account created. Sign in to continue.");
-      router.push("/login");
+
+      const login = await signIn("credentials", {
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+        rememberMe: "false",
+        redirect: false,
+      });
+      if (login?.error) {
+        toast.success("Account created. Sign in to continue.");
+        window.location.href = "/login";
+        return;
+      }
+
+      await bootstrapAuthSession(false);
+      toast.success("Account verified. Setting up your workspace...");
+      await completeAuthRedirect();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -136,11 +153,11 @@ export default function SignupPage() {
 
   return (
     <AuthShell
-      title="Create your workspace"
-      subtitle="Start your SynklyERP trial with email or mobile verification."
+      title="Create your account"
+      subtitle="Start your SynklyERP trial with secure verification."
       footer={
         <p className="text-center text-sm text-slate-600">
-          Already have an account?{" "}
+          Have an account?{" "}
           <Link href="/login" className="font-semibold text-[#1B1538] hover:underline">
             Sign in
           </Link>
@@ -148,25 +165,25 @@ export default function SignupPage() {
       }
     >
       {step !== "plan" && (
-      <div className="mb-6 flex rounded-lg bg-slate-100 p-1">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            disabled={step === "verify"}
-            onClick={() => {
-              setChannel(t.id);
-              setOtp("");
-              setDevHint("");
-            }}
-            className={`flex-1 rounded-md py-2 text-xs font-medium transition sm:text-sm ${
-              channel === t.id ? "bg-white text-[#1B1538] shadow-sm" : "text-slate-500 hover:text-slate-700"
-            } disabled:opacity-60`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+        <div className="mb-6 flex rounded-lg bg-slate-100 p-1">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              disabled={step === "verify"}
+              onClick={() => {
+                setChannel(t.id);
+                setOtp("");
+                setDevHint("");
+              }}
+              className={`flex-1 rounded-md py-2 text-xs font-medium transition sm:text-sm ${
+                channel === t.id ? "bg-white text-[#1B1538] shadow-sm" : "text-slate-500 hover:text-slate-700"
+              } disabled:opacity-60`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       )}
 
       {step === "plan" ? (
@@ -217,7 +234,8 @@ export default function SignupPage() {
               <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 required
-                placeholder="Acme Pvt Ltd"
+                autoFocus
+                placeholder="Acme Corp"
                 className="pl-10"
                 value={form.companyName}
                 onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
@@ -226,12 +244,12 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <Label>Your full name</Label>
+            <Label>Contact person</Label>
             <div className="relative mt-1.5">
               <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 required
-                placeholder="Jane Doe"
+                placeholder="John Doe"
                 className="pl-10"
                 value={form.fullName}
                 onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
@@ -240,13 +258,13 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <Label>Work email</Label>
+            <Label>Email</Label>
             <div className="relative mt-1.5">
               <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 type="email"
                 required
-                placeholder="you@company.com"
+                placeholder="john@acmecorp.com"
                 className="pl-10"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
@@ -274,14 +292,22 @@ export default function SignupPage() {
             <div className="relative mt-1.5">
               <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 minLength={8}
                 placeholder="Min. 8 characters"
-                className="pl-10"
+                className="pl-10 pr-10"
                 value={form.password}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
               />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
             <PasswordStrengthMeter password={form.password} />
           </div>
@@ -290,17 +316,17 @@ export default function SignupPage() {
 
           <Button
             type="submit"
-            disabled={loading}
-            className="h-11 w-full rounded-full text-white"
+            disabled={loading || !detailsValid}
+            className="h-11 w-full rounded-full text-white disabled:opacity-50"
             style={{ backgroundColor: "#1B1538" }}
           >
-            {loading ? "Sending code..." : `Send ${channel === "email" ? "email" : "mobile"} verification code`}
+            {loading ? "Sending code..." : "Create Account →"}
           </Button>
         </form>
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
-            Enter the code sent to <span className="font-medium text-slate-900">{identifier}</span>
+            Enter the verification code sent to <span className="font-medium text-slate-900">{identifier}</span>
           </p>
           <OtpInput value={otp} onChange={setOtp} />
           <button
@@ -309,7 +335,7 @@ export default function SignupPage() {
             disabled={loading || !canResend}
             onClick={sendOtp}
           >
-            {canResend ? "Resend code" : `Resend in ${seconds}s`}
+            {canResend ? "Resend OTP" : `Resend in ${seconds}s`}
           </button>
           {devHint && (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -318,9 +344,9 @@ export default function SignupPage() {
           )}
           <Button
             type="button"
-            disabled={loading}
+            disabled={loading || otp.length !== 6}
             onClick={completeSignup}
-            className="h-11 w-full rounded-full text-white"
+            className="h-11 w-full rounded-full text-white disabled:opacity-50"
             style={{ backgroundColor: "#1B1538" }}
           >
             {loading ? "Creating account..." : "Verify & create account"}
@@ -329,7 +355,7 @@ export default function SignupPage() {
             type="button"
             className="w-full text-sm text-slate-500 hover:text-[#1B1538]"
             onClick={() => {
-              setStep("plan");
+              setStep("details");
               setOtp("");
             }}
           >

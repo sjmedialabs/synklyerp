@@ -107,11 +107,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return await buildAuthUser(user, rememberMe);
         }
 
-        if (!email || !password) return null;
+        if (!password) return null;
+        if (!email && !phone) return null;
 
-        if (await isEmailLocked(email)) return null;
+        const user =
+          email && email.includes("@")
+            ? await (async () => {
+                if (await isEmailLocked(email)) return null;
+                return findUserByEmail(email);
+              })()
+            : phone
+              ? await findUserByPhone(phone)
+              : email
+                ? await findUserByEmail(email)
+                : null;
 
-        const user = await findUserByEmail(email);
         if (!user?.passwordHash || user.status !== "ACTIVE") {
           if (user) {
             try {

@@ -13,6 +13,7 @@ export type DashboardWidgetDef = {
   permission?: { module: string; feature: string; action?: string };
   roles?: AppRole[];
   businessTypes?: BusinessType[];
+  industrySubtypes?: string[];
   apiUrl?: string;
   href?: string;
   icon: string;
@@ -30,6 +31,8 @@ export type DashboardShortcutDef = {
   moduleKey?: ErpModuleKey | "organisation";
   permission: { module: string; feature: string; action?: string };
   priority: number;
+  businessTypes?: BusinessType[];
+  industrySubtypes?: string[];
 };
 
 export const DASHBOARD_KPI_WIDGETS: DashboardWidgetDef[] = [
@@ -77,6 +80,7 @@ export const DASHBOARD_KPI_WIDGETS: DashboardWidgetDef[] = [
     subKey: "onLeave",
     subLabel: "on leave",
     businessTypes: ["Product", "Hybrid"],
+    industrySubtypes: ["Manufacturing", "Retail", "Restaurant", "Franchise"],
   },
   {
     id: "kpi-leads",
@@ -103,6 +107,20 @@ export const DASHBOARD_KPI_WIDGETS: DashboardWidgetDef[] = [
     priority: 40,
     valueKey: "total",
     businessTypes: ["Service", "Hybrid"],
+    industrySubtypes: ["IT Services", "Consulting", "Legal Services", "Marketing Agency", "Healthcare"],
+  },
+  {
+    id: "kpi-operations",
+    type: "kpi",
+    label: "Inventory Items",
+    description: "Stock and warehouse snapshot",
+    moduleKey: "Operations",
+    permission: { module: "organisation", feature: "branches" },
+    href: "/app/operations",
+    icon: "Package",
+    priority: 35,
+    businessTypes: ["Product", "Hybrid"],
+    industrySubtypes: ["Manufacturing", "Retail", "FMCG", "Distribution", "Wholesale", "Automobile"],
   },
   {
     id: "kpi-services",
@@ -172,6 +190,7 @@ export const DASHBOARD_SHORTCUTS: DashboardShortcutDef[] = [
     moduleKey: "Sales",
     permission: { module: "sales", feature: "leads", action: "create" },
     priority: 30,
+    industrySubtypes: ["Retail", "E-Commerce", "IT Services", "Healthcare", "Consulting"],
   },
   {
     id: "sc-service",

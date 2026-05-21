@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-function captchaEnabled() {
+export function captchaEnabled() {
   return Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 }
 

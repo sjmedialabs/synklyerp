@@ -34,10 +34,13 @@ export const APP_NAVIGATION: NavItem[] = [
     label: "Setup",
     icon: Building2,
     children: [
+      { id: "organisation-hub", label: "Organisation Setup", href: "/app/setup/organisation", status: "built" },
       { id: "business-type", label: "Business Type", href: "/app/setup/business-type", status: "built" },
+      { id: "company-info", label: "Company Information", href: "/app/setup/organisation/company-information", status: "built" },
+      { id: "branch-mgmt", label: "Branch Management", href: "/app/setup/organisation/branches", status: "built" },
       {
         id: "organisation",
-        label: "Organisation Setup",
+        label: "Organisation Directory",
         children: [
           { id: "taxes", label: "Taxes", href: "/app/organisation/taxes", status: "built" },
           { id: "branches", label: "Branches", href: "/app/organisation/branches", status: "built" },

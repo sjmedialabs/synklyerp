@@ -9,6 +9,7 @@ import { secureSignOut } from "@/lib/auth/client";
 import { ACCOUNT_NAV, type NavItem } from "@/config/navigation";
 import { filterNavigation } from "@/lib/navigation/filter-nav";
 import { usePermissions } from "@/hooks/tenant/use-permissions";
+import { useTenantBusinessProfile } from "@/hooks/provisioning/use-tenant-business-profile";
 
 function NavLink({
   item,
@@ -110,11 +111,13 @@ function SidebarSignOut({ collapsed }: { collapsed: boolean }) {
 export function AppSidebar({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const { data: session } = useSession();
   const { canAccessNavId, isLoading: permsLoading } = usePermissions();
+  const { data: businessProfile } = useTenantBusinessProfile();
   const navigation = useMemo(() => {
     const modules = session?.user?.enabledModules ?? [];
-    if (permsLoading) return filterNavigation(modules.length ? modules : []);
-    return filterNavigation(modules.length ? modules : [], canAccessNavId);
-  }, [session?.user?.enabledModules, canAccessNavId, permsLoading]);
+    const submodules = businessProfile?.enabledSubmodules ?? [];
+    if (permsLoading) return filterNavigation(modules.length ? modules : [], undefined, submodules);
+    return filterNavigation(modules.length ? modules : [], canAccessNavId, submodules);
+  }, [session?.user?.enabledModules, businessProfile?.enabledSubmodules, canAccessNavId, permsLoading]);
 
   return (
     <nav className="flex h-full min-h-0 flex-col overflow-hidden">

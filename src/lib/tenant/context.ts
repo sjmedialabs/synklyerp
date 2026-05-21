@@ -71,6 +71,30 @@ export function handleApiError(error: unknown) {
     if (error.message === "ONBOARDING_LOCKED") {
       return { status: 409, code: "ONBOARDING_LOCKED", message: "Onboarding configuration is locked" };
     }
+    if (error.message === "INVALID_BUSINESS_SELECTION") {
+      return { status: 400, code: "INVALID_BUSINESS_SELECTION", message: "Invalid business type or subcategory" };
+    }
+    if (error.message === "INVALID_BUSINESS_CONFIG") {
+      return { status: 400, code: "INVALID_BUSINESS_CONFIG", message: "Business configuration not found" };
+    }
+    if (error.message === "DUPLICATE_BRANCH_CODE") {
+      return { status: 409, code: "DUPLICATE_BRANCH_CODE", message: "Branch code already exists for this tenant" };
+    }
+    if (error.message === "PRIMARY_OFFICE_EXISTS") {
+      return { status: 409, code: "PRIMARY_OFFICE_EXISTS", message: "A primary office already exists for this tenant" };
+    }
+    if (error.message === "DUPLICATE_GST_NUMBER") {
+      return { status: 409, code: "DUPLICATE_GST_NUMBER", message: "GST number already registered for this tenant" };
+    }
+    if (error.message === "DUPLICATE_PAN_NUMBER") {
+      return { status: 409, code: "DUPLICATE_PAN_NUMBER", message: "PAN number already registered for this tenant" };
+    }
+    if (error.message === "INVALID_LOGO_TYPE") {
+      return { status: 400, code: "INVALID_LOGO_TYPE", message: "Logo must be PNG, JPG, WEBP, or SVG" };
+    }
+    if (error.message === "LOGO_TOO_LARGE") {
+      return { status: 400, code: "LOGO_TOO_LARGE", message: "Logo must be 2MB or smaller" };
+    }
     if (error.message === "MODULE_DISABLED") {
       return {
         status: 403,

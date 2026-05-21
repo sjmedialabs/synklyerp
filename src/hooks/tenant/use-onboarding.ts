@@ -10,11 +10,15 @@ export type OnboardingStateResponse = {
   completedAt: string | null;
   draft: OnboardingDraftInput | null;
   businessType: string;
+  businessSubcategory: string | null;
   industrySubtype: string | null;
   employeeCount: string | null;
   businessSize: string | null;
   enabledModules: string[];
+  enabledSubmodules: string[];
   previewModules: string[];
+  previewSubmodules: string[];
+  onboardingCompleted: boolean;
 };
 
 export function useOnboardingState() {
@@ -28,10 +32,13 @@ export function useSaveOnboardingDraft() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (draft: OnboardingDraftInput) =>
-      fetchApi<{ draft: OnboardingDraftInput; previewModules: string[] }>("/api/tenant/onboarding", {
-        method: "PATCH",
-        body: JSON.stringify(draft),
-      }),
+      fetchApi<{ draft: OnboardingDraftInput; previewModules: string[]; previewSubmodules: string[] }>(
+        "/api/tenant/onboarding",
+        {
+          method: "PATCH",
+          body: JSON.stringify(draft),
+        }
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tenant", "onboarding"] }),
   });
 }
@@ -40,9 +47,12 @@ export function useConfirmOnboarding() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      fetchApi<{ completedAt: string; enabledModules: string[] }>("/api/tenant/onboarding/confirm", {
-        method: "POST",
-      }),
+      fetchApi<{ completedAt: string; enabledModules: string[]; enabledSubmodules: string[] }>(
+        "/api/tenant/onboarding/confirm",
+        {
+          method: "POST",
+        }
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tenant", "onboarding"] });
       qc.invalidateQueries({ queryKey: ["tenant", "modules"] });

@@ -14,6 +14,7 @@ export type ResolveDashboardInput = {
   permissions: string[];
   role: AppRole;
   businessType: string;
+  industrySubtype?: string | null;
   tenantName?: string | null;
 };
 
@@ -22,6 +23,7 @@ export type ResolvedDashboard = {
   panels: DashboardWidgetDef[];
   shortcuts: DashboardShortcutDef[];
   businessType: string;
+  industrySubtype: string | null;
   tenantName: string | null;
 };
 
@@ -47,9 +49,19 @@ function roleAllowed(role: AppRole, roles?: AppRole[]) {
   return roles.includes(role);
 }
 
-function businessBoost(businessType: string, widget: DashboardWidgetDef) {
-  if (!widget.businessTypes?.length) return 0;
-  return widget.businessTypes.includes(businessType as BusinessType) ? -5 : 0;
+function personalizationBoost(
+  businessType: string,
+  industrySubtype: string | null | undefined,
+  item: { businessTypes?: BusinessType[]; industrySubtypes?: string[]; priority: number }
+) {
+  let score = item.priority;
+  if (item.businessTypes?.length && item.businessTypes.includes(businessType as BusinessType)) {
+    score -= 5;
+  }
+  if (industrySubtype && item.industrySubtypes?.includes(industrySubtype)) {
+    score -= 8;
+  }
+  return score;
 }
 
 function filterWidget(
@@ -67,9 +79,12 @@ function filterWidget(
 export function resolveDashboard(input: ResolveDashboardInput): ResolvedDashboard {
   const permSet = new Set(input.permissions);
   const enabled = new Set(input.enabledModules);
+  const industrySubtype = input.industrySubtype ?? null;
 
   const kpis = DASHBOARD_KPI_WIDGETS.filter((w) => filterWidget(w, input, permSet, enabled)).sort(
-    (a, b) => a.priority + businessBoost(input.businessType, a) - (b.priority + businessBoost(input.businessType, b))
+    (a, b) =>
+      personalizationBoost(input.businessType, industrySubtype, a) -
+      personalizationBoost(input.businessType, industrySubtype, b)
   );
 
   const panels = DASHBOARD_PANEL_WIDGETS.filter((w) => {
@@ -81,14 +96,26 @@ export function resolveDashboard(input: ResolveDashboardInput): ResolvedDashboar
 
   const shortcuts = DASHBOARD_SHORTCUTS.filter((s) => {
     if (!moduleEnabled(enabled, s.moduleKey)) return false;
-    return hasPermission(permSet, input.role, s.permission);
-  }).sort((a, b) => a.priority - b.priority);
+    if (!hasPermission(permSet, input.role, s.permission)) return false;
+    if (s.businessTypes?.length && !s.businessTypes.includes(input.businessType as BusinessType)) {
+      return false;
+    }
+    if (s.industrySubtypes?.length && industrySubtype && !s.industrySubtypes.includes(industrySubtype)) {
+      return false;
+    }
+    return true;
+  }).sort(
+    (a, b) =>
+      personalizationBoost(input.businessType, industrySubtype, a) -
+      personalizationBoost(input.businessType, industrySubtype, b)
+  );
 
   return {
     kpis,
     panels,
     shortcuts,
     businessType: input.businessType,
+    industrySubtype,
     tenantName: input.tenantName ?? null,
   };
 }

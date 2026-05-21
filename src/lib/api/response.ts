@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import type { ApiError, ApiSuccess, PaginationMeta } from "@/types/api";
 
-export function apiSuccess<T>(data: T, meta?: PaginationMeta, status = 200) {
-  const body: ApiSuccess<T> = { success: true, data, ...(meta ? { meta } : {}) };
+export function apiSuccess<T>(data: T, meta?: PaginationMeta, status = 200, message?: string) {
+  const body: ApiSuccess<T> = { success: true, data, ...(message ? { message } : {}), ...(meta ? { meta } : {}) };
   return NextResponse.json(body, { status });
 }
 

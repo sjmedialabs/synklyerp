@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMissingSchemaError } from "@/lib/db/schema-errors";
-import { resolveModulesForBusinessType } from "@/lib/modules/activation";
+import { businessProvisioningService } from "@/lib/provisioning/business-provisioning-service";
+import { resolveOnboardingProvisioning } from "@/lib/modules/activation";
 import type { BusinessType } from "@/constants/onboarding";
 import { activateModules, listActiveModules } from "@/repositories/tenant/modules";
 import { syncRolePermissionsForTenant } from "@/lib/rbac/sync-tenant-roles";
@@ -12,11 +13,15 @@ export type OnboardingState = {
   completedAt: string | null;
   draft: OnboardingDraftInput | null;
   businessType: string;
+  businessSubcategory: string | null;
   industrySubtype: string | null;
   employeeCount: string | null;
   businessSize: string | null;
   enabledModules: string[];
+  enabledSubmodules: string[];
   previewModules: string[];
+  previewSubmodules: string[];
+  onboardingCompleted: boolean;
 };
 
 function parseDraft(raw: unknown): OnboardingDraftInput | null {
@@ -31,12 +36,17 @@ function parseDraft(raw: unknown): OnboardingDraftInput | null {
   };
 }
 
+function parseEnabledSubmodules(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is string => typeof item === "string");
+}
+
 export async function getOnboardingState(tenantId: string): Promise<OnboardingState> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("tenants")
     .select(
-      "business_type, industry_subtype, employee_count, business_size, onboarding_draft, onboarding_completed_at, onboarding_locked"
+      "business_type, industry_subtype, employee_count, business_size, onboarding_draft, onboarding_completed_at, onboarding_locked, enabled_submodules"
     )
     .eq("id", tenantId)
     .maybeSingle();
@@ -50,18 +60,23 @@ export async function getOnboardingState(tenantId: string): Promise<OnboardingSt
         .maybeSingle();
       if (legacyErr || !legacy) throw legacyErr ?? new Error("NOT_FOUND");
       const businessType = (legacy as { business_type: string }).business_type;
-      const previewModules = resolveModulesForBusinessType(businessType as BusinessType);
+      const industrySubtype = (legacy as { industry_subtype: string | null }).industry_subtype;
+      const provisioning = resolveOnboardingProvisioning(businessType as BusinessType, industrySubtype);
       return {
         completed: true,
         locked: true,
         completedAt: null,
         draft: null,
         businessType,
-        industrySubtype: (legacy as { industry_subtype: string | null }).industry_subtype,
+        businessSubcategory: industrySubtype,
+        industrySubtype,
         employeeCount: null,
         businessSize: null,
-        enabledModules: previewModules,
-        previewModules,
+        enabledModules: provisioning.modules,
+        enabledSubmodules: provisioning.submodules,
+        previewModules: provisioning.modules,
+        previewSubmodules: provisioning.submodules,
+        onboardingCompleted: true,
       };
     }
     throw error;
@@ -76,14 +91,22 @@ export async function getOnboardingState(tenantId: string): Promise<OnboardingSt
     onboarding_draft: unknown;
     onboarding_completed_at: string | null;
     onboarding_locked: boolean;
+    enabled_submodules: unknown;
   };
 
   const draft = parseDraft(row.onboarding_draft);
   const businessType = draft?.businessType ?? row.business_type;
-  const previewModules = resolveModulesForBusinessType(businessType);
+  const industrySubtype = draft?.industrySubtype ?? row.industry_subtype;
+  const provisioning = resolveOnboardingProvisioning(businessType, industrySubtype);
   const enabledModules = row.onboarding_completed_at
     ? await listActiveModules(tenantId)
-    : previewModules;
+    : provisioning.modules;
+  const enabledSubmodules = row.onboarding_completed_at
+    ? (() => {
+        const stored = parseEnabledSubmodules(row.enabled_submodules);
+        return stored.length > 0 ? stored : provisioning.submodules;
+      })()
+    : provisioning.submodules;
 
   return {
     completed: !!row.onboarding_completed_at,
@@ -91,11 +114,15 @@ export async function getOnboardingState(tenantId: string): Promise<OnboardingSt
     completedAt: row.onboarding_completed_at,
     draft,
     businessType: row.business_type,
+    businessSubcategory: row.industry_subtype,
     industrySubtype: row.industry_subtype,
     employeeCount: row.employee_count,
     businessSize: row.business_size,
     enabledModules,
-    previewModules,
+    enabledSubmodules,
+    previewModules: provisioning.modules,
+    previewSubmodules: provisioning.submodules,
+    onboardingCompleted: !!row.onboarding_completed_at,
   };
 }
 
@@ -115,7 +142,7 @@ export async function saveOnboardingDraft(tenantId: string, draft: OnboardingDra
     throw new Error("ONBOARDING_LOCKED");
   }
 
-  const previewModules = resolveModulesForBusinessType(draft.businessType);
+  const provisioning = resolveOnboardingProvisioning(draft.businessType, draft.industrySubtype);
 
   const { error } = await supabase
     .from("tenants")
@@ -131,25 +158,44 @@ export async function saveOnboardingDraft(tenantId: string, draft: OnboardingDra
 
   if (error) throw error;
 
-  return { draft, previewModules };
+  return {
+    draft,
+    previewModules: provisioning.modules,
+    previewSubmodules: provisioning.submodules,
+  };
 }
 
 export async function confirmOnboarding(tenantId: string, userId: string) {
-  const supabase = createAdminClient();
   const state = await getOnboardingState(tenantId);
-
   if (state.locked) throw new Error("ONBOARDING_LOCKED");
 
   const draft =
     state.draft ??
     ({
       businessType: state.businessType as OnboardingDraftInput["businessType"],
-      industrySubtype: state.industrySubtype ?? "Other",
+      industrySubtype: state.industrySubtype ?? INDUSTRY_FALLBACK,
       employeeCount: (state.employeeCount ?? "11-50") as OnboardingDraftInput["employeeCount"],
       businessSize: (state.businessSize ?? "SMB") as OnboardingDraftInput["businessSize"],
     } satisfies OnboardingDraftInput);
 
-  const modules = resolveModulesForBusinessType(draft.businessType);
+  try {
+    const result = await businessProvisioningService.provisionTenantFromLegacyDraft(tenantId, userId, draft);
+    return {
+      completedAt: result.completedAt,
+      enabledModules: result.enabledModules,
+      enabledSubmodules: result.enabledSubmodules,
+    };
+  } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_BUSINESS_CONFIG") {
+      return confirmOnboardingLegacy(tenantId, userId, draft);
+    }
+    throw error;
+  }
+}
+
+async function confirmOnboardingLegacy(tenantId: string, userId: string, draft: OnboardingDraftInput) {
+  const supabase = createAdminClient();
+  const provisioning = resolveOnboardingProvisioning(draft.businessType, draft.industrySubtype);
   const now = new Date().toISOString();
 
   const { error } = await supabase
@@ -162,14 +208,15 @@ export async function confirmOnboarding(tenantId: string, userId: string) {
       onboarding_draft: draft,
       onboarding_completed_at: now,
       onboarding_locked: true,
+      enabled_submodules: provisioning.submodules,
       updated_at: now,
     })
     .eq("id", tenantId);
 
   if (error) throw error;
 
-  await activateModules(tenantId, modules);
-  await syncRolePermissionsForTenant(tenantId);
+  await activateModules(tenantId, provisioning.modules);
+  await syncRolePermissionsForTenant(tenantId, provisioning.modules);
 
   await supabase.from("activity_logs").insert({
     tenant_id: tenantId,
@@ -178,8 +225,19 @@ export async function confirmOnboarding(tenantId: string, userId: string) {
     action: "confirm",
     entity_type: "tenant",
     entity_id: tenantId,
-    payload: { businessType: draft.businessType, modules },
+    payload: {
+      businessType: draft.businessType,
+      businessSubcategory: draft.industrySubtype,
+      modules: provisioning.modules,
+      submodules: provisioning.submodules,
+    },
   });
 
-  return { completedAt: now, enabledModules: modules };
+  return {
+    completedAt: now,
+    enabledModules: provisioning.modules,
+    enabledSubmodules: provisioning.submodules,
+  };
 }
+
+const INDUSTRY_FALLBACK = "Manufacturing";

@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { OtpInput } from "@/components/auth/otp-input";
 import { PasswordStrengthMeter } from "@/components/auth/password-strength";
-import { TurnstileWidget } from "@/components/auth/turnstile";
+import { TurnstileWidget, captchaEnabled } from "@/components/auth/turnstile";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { evaluatePassword } from "@/lib/auth/password-policy";
@@ -19,15 +19,28 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [step, setStep] = useState<"email" | "reset">("email");
   const [loading, setLoading] = useState(false);
   const [devHint, setDevHint] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const { seconds, canResend, startCooldown } = useOtpResend();
 
+  const captchaRequired = captchaEnabled();
+  const captchaOk = !captchaRequired || !!captchaToken;
+  const passwordCheck = useMemo(() => evaluatePassword(password), [password]);
+  const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
+  const resetValid = otp.length === 6 && passwordCheck.valid && passwordsMatch;
+
   const sendOtp = async () => {
     if (!email) {
       toast.error("Enter your email");
+      return;
+    }
+    if (captchaRequired && !captchaToken) {
+      toast.error("Complete the CAPTCHA verification");
       return;
     }
     setLoading(true);
@@ -57,9 +70,12 @@ export default function ForgotPasswordPage() {
 
   const resetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    const pw = evaluatePassword(password);
-    if (!pw.valid) {
-      toast.error(pw.hints[0] ?? pw.message);
+    if (!passwordCheck.valid) {
+      toast.error(passwordCheck.hints[0] ?? passwordCheck.message);
+      return;
+    }
+    if (!passwordsMatch) {
+      toast.error("Passwords do not match");
       return;
     }
     setLoading(true);
@@ -71,7 +87,7 @@ export default function ForgotPasswordPage() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error?.message ?? "Reset failed");
-      toast.success("Password updated. You can sign in now.");
+      toast.success("Password reset successfully");
       router.push("/login");
     } catch (err) {
       toast.error((err as Error).message);
@@ -83,7 +99,11 @@ export default function ForgotPasswordPage() {
   return (
     <AuthShell
       title="Reset your password"
-      subtitle="We'll email you a one-time code to set a new password."
+      subtitle={
+        step === "email"
+          ? "We'll email you a one-time code to set a new password."
+          : "Enter a new password to continue"
+      }
       footer={
         <p className="text-center text-sm text-slate-600">
           Remember your password?{" "}
@@ -108,6 +128,7 @@ export default function ForgotPasswordPage() {
               <Input
                 type="email"
                 required
+                autoFocus
                 placeholder="you@company.com"
                 className="pl-10"
                 value={email}
@@ -118,8 +139,8 @@ export default function ForgotPasswordPage() {
           <TurnstileWidget onToken={setCaptchaToken} onExpire={() => setCaptchaToken("")} />
           <Button
             type="submit"
-            disabled={loading}
-            className="h-11 w-full rounded-full text-white"
+            disabled={loading || !email || !captchaOk}
+            className="h-11 w-full rounded-full text-white disabled:opacity-50"
             style={{ backgroundColor: "#1B1538" }}
           >
             {loading ? "Sending..." : "Send reset code"}
@@ -149,24 +170,59 @@ export default function ForgotPasswordPage() {
             <div className="relative mt-1.5">
               <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
+                autoFocus
                 minLength={8}
-                placeholder="Min. 8 characters"
-                className="pl-10"
+                placeholder="Enter new password"
+                className="pl-10 pr-10"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
             <PasswordStrengthMeter password={password} />
           </div>
+          <div>
+            <Label>Confirm password</Label>
+            <div className="relative mt-1.5">
+              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                type={showConfirmPassword ? "text" : "password"}
+                required
+                minLength={8}
+                placeholder="Confirm new password"
+                className={`pl-10 pr-10 ${confirmPassword && !passwordsMatch ? "border-red-400" : ""}`}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                onClick={() => setShowConfirmPassword((v) => !v)}
+                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+              >
+                {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            {confirmPassword && !passwordsMatch && (
+              <p className="mt-1 text-xs text-red-600">Passwords do not match</p>
+            )}
+          </div>
           <Button
             type="submit"
-            disabled={loading}
-            className="h-11 w-full rounded-full text-white"
+            disabled={loading || !resetValid}
+            className="h-11 w-full rounded-full text-white disabled:opacity-50"
             style={{ backgroundColor: "#1B1538" }}
           >
-            {loading ? "Updating..." : "Set new password"}
+            {loading ? "Updating..." : "Reset Password"}
           </Button>
           <button
             type="button"

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, ShieldCheck, Lock } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Lock, X } from "lucide-react";
 import type { ReactNode } from "react";
 
 const BRAND_NAVY = "#1B1538";
@@ -17,7 +17,17 @@ type AuthShellProps = {
 export function AuthShell({ title, subtitle, children, footer }: AuthShellProps) {
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-white" style={{ fontFamily: "var(--font-google-sans)" }}>
-      <div className="flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-16 xl:px-20">
+      <div className="relative flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-16 xl:px-20">
+        <div className="absolute right-6 top-6 flex items-center gap-3 sm:right-8 sm:top-8">
+          <Link
+            href="/"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-[#1B1538]"
+            aria-label="Close and return to homepage"
+          >
+            <X size={18} />
+          </Link>
+        </div>
+
         <Link
           href="/"
           className="mb-8 inline-flex items-center text-sm font-medium text-slate-500 transition hover:text-[#1B1538]"
@@ -63,7 +73,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
           <ul className="mt-8 space-y-4">
             {[
               { icon: ShieldCheck, title: "Bank-grade security", text: "Tenant isolation and encrypted credentials." },
-              { icon: Lock, title: "OTP sign-in", text: "Email and mobile one-time passwords supported." },
+              { icon: Lock, title: "Secure sign-in", text: "Email or mobile login with password protection." },
             ].map((item) => (
               <li key={item.title} className="flex gap-4 rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
                 <item.icon className="mt-0.5 h-5 w-5 shrink-0 text-violet-300" />

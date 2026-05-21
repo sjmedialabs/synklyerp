@@ -50,7 +50,18 @@ const API_PREFIX_TO_MODULE: { prefix: string; module: ErpModuleKey }[] = [
   { prefix: "/api/operations", module: "Operations" },
 ];
 
-const API_MODULE_EXEMPT_PREFIXES = ["/api/organisation", "/api/tenant", "/api/dashboard", "/api/activity-logs", "/api/notifications"];
+const API_MODULE_EXEMPT_PREFIXES = [
+  "/api/organisation",
+  "/api/branches",
+  "/api/company-profile",
+  "/api/company-information",
+  "/api/business-types",
+  "/api/onboarding",
+  "/api/tenant",
+  "/api/dashboard",
+  "/api/activity-logs",
+  "/api/notifications",
+];
 
 /** Returns ERP module required for a REST path, or null if unrestricted. */
 export function resolveModuleForApiPath(pathname: string): ErpModuleKey | null {

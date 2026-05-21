@@ -18,9 +18,10 @@ export async function bootstrapAuthSession(rememberMe: boolean) {
 
 export async function completeAuthRedirect() {
   const session = await getSession();
-  const target = session?.user?.role === "SUPERADMIN" ? "/superadmin" : "/app";
-  if (session?.user?.onboardingCompleted === false && session?.user?.role !== "SUPERADMIN") {
-    window.location.href = "/onboarding";
+  const role = session?.user?.role;
+  const target = role === "SUPERADMIN" ? "/superadmin" : "/app";
+  if (session?.user?.onboardingCompleted === false && role !== "SUPERADMIN") {
+    window.location.href = role === "ADMIN" ? "/onboarding" : "/onboarding?waiting=1";
     return;
   }
   window.location.href = target;

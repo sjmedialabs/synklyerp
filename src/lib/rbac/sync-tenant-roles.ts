@@ -1,4 +1,6 @@
 import { buildPermissionCatalog, type PermissionAction } from "@/constants/permissions";
+import { PERM_MODULE_TO_ERP } from "@/constants/onboarding";
+import type { ErpModuleKey } from "@/constants/onboarding";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isPermissionEnabledForRole, TENANT_SYSTEM_ROLES, type SystemRoleName } from "@/lib/rbac/role-matrix";
 
@@ -50,11 +52,12 @@ export async function ensureTenantSystemRoles(tenantId: string) {
   return roles;
 }
 
-export async function syncRolePermissionsForTenant(tenantId: string) {
+export async function syncRolePermissionsForTenant(tenantId: string, enabledModules?: ErpModuleKey[]) {
   await upsertPermissionCatalog();
 
   const supabase = createAdminClient();
   const roles = await ensureTenantSystemRoles(tenantId);
+  const enabled = enabledModules?.length ? new Set<string>(enabledModules) : null;
 
   const { data: permissions, error: permErr } = await supabase.from("permissions").select("id, module, feature, action");
   if (permErr) throw permErr;
@@ -71,9 +74,21 @@ export async function syncRolePermissionsForTenant(tenantId: string) {
             feature: perm.feature,
             action: perm.action as PermissionAction,
           }),
+          perm,
         };
       })
-      .filter((r) => r.enabled);
+      .filter((r) => r.enabled)
+      .filter((r) => {
+        if (!enabled) return true;
+        const mapped = PERM_MODULE_TO_ERP[r.perm.module];
+        if (!mapped || mapped === "organisation" || mapped === "tenant") return true;
+        return enabled.has(mapped);
+      })
+      .map(({ role_id, permission_id, enabled: isEnabled }) => ({
+        role_id,
+        permission_id,
+        enabled: isEnabled,
+      }));
 
     for (const chunk of chunkArray(rows, 100)) {
       const { error } = await supabase.from("role_permissions").upsert(chunk, {

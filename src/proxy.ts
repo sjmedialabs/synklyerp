@@ -37,7 +37,14 @@ export default auth((req) => {
 
   const onboardingDone = req.auth?.user?.onboardingCompleted;
   if (isLoggedIn && role !== "SUPERADMIN" && isAppRoute && onboardingDone === false) {
-    return NextResponse.redirect(new URL("/onboarding", nextUrl));
+    const waitingUrl = new URL("/onboarding?waiting=1", nextUrl);
+    return NextResponse.redirect(role === "ADMIN" ? new URL("/onboarding", nextUrl) : waitingUrl);
+  }
+
+  if (isLoggedIn && isOnboardingRoute && onboardingDone === false && role !== "ADMIN" && role !== "SUPERADMIN") {
+    if (!nextUrl.searchParams.get("waiting")) {
+      return NextResponse.redirect(new URL("/onboarding?waiting=1", nextUrl));
+    }
   }
 
   if (isLoggedIn && isOnboardingRoute && onboardingDone === true) {

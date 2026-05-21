@@ -3,15 +3,12 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { toast } from "sonner";
-import { Mail, Lock, Smartphone } from "lucide-react";
+import { Mail, Lock, Smartphone, Eye, EyeOff } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { OtpInput } from "@/components/auth/otp-input";
-import { TurnstileWidget } from "@/components/auth/turnstile";
+import { TurnstileWidget, captchaEnabled } from "@/components/auth/turnstile";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { bootstrapAuthSession, completeAuthRedirect } from "@/lib/auth/client";
-import { useOtpResend } from "@/hooks/auth/use-otp-resend";
 
 type IdentifierKind = "email" | "phone" | null;
 
@@ -26,132 +23,120 @@ function detectIdentifierKind(value: string): IdentifierKind {
   return null;
 }
 
+function validateEmail(value: string): string | null {
+  if (!value.trim()) return "Email or mobile number is required";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) return "Enter a valid email address";
+  return null;
+}
+
+function validatePhone(value: string): string | null {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length < 10) return "Enter a valid mobile number (e.g. +91 9876543210)";
+  return null;
+}
+
+function validatePassword(value: string): string | null {
+  if (!value) return "Password is required";
+  if (value.length < 8) return "Password must be at least 8 characters";
+  return null;
+}
+
 export default function LoginPage() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [devHint, setDevHint] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
-  const { seconds, canResend, startCooldown } = useOtpResend();
+  const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string; captcha?: string }>({});
+  const [formError, setFormError] = useState("");
 
   const kind = useMemo(() => detectIdentifierKind(identifier), [identifier]);
+  const captchaRequired = captchaEnabled();
+  const captchaOk = !captchaRequired || !!captchaToken;
 
-  const resetOtp = () => {
-    setOtpSent(false);
-    setOtp("");
-    setDevHint("");
-    setCaptchaToken("");
-  };
+  const identifierError = useMemo(() => {
+    if (!identifier.trim()) return null;
+    return kind === "email" ? validateEmail(identifier) : kind === "phone" ? validatePhone(identifier) : "Enter a valid email or mobile number";
+  }, [identifier, kind]);
 
-  const handleIdentifierChange = (value: string) => {
-    setIdentifier(value);
-    resetOtp();
-  };
+  const passwordError = useMemo(() => (password ? validatePassword(password) : null), [password]);
 
-  const sendOtp = async (phone: string) => {
-    if (!phone.trim()) {
-      toast.error("Enter your mobile number");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          channel: "sms",
-          identifier: phone.trim(),
-          purpose: "login",
-          captchaToken: captchaToken || undefined,
-        }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error?.message ?? "Failed to send OTP");
-      setOtpSent(true);
-      if (json.data?.devCode) setDevHint(json.data.devCode);
-      startCooldown(json.data?.resendAfterSeconds ?? json.error?.details?.retryAfterSeconds ?? 60);
-      toast.success("Verification code sent via SMS");
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const canSubmit =
+    !!kind &&
+    !identifierError &&
+    !!password &&
+    !passwordError &&
+    captchaOk &&
+    !loading;
 
-  const finishLogin = async () => {
-    await bootstrapAuthSession(rememberMe);
-    await completeAuthRedirect();
+  const clearErrorsOnChange = () => {
+    setFieldErrors({});
+    setFormError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!kind) {
-      toast.error("Enter a valid email or mobile number");
+
+    const nextErrors: typeof fieldErrors = {};
+    if (!kind) nextErrors.identifier = "Enter a valid email or mobile number";
+    else if (kind === "email" && validateEmail(identifier)) nextErrors.identifier = validateEmail(identifier)!;
+    else if (kind === "phone" && validatePhone(identifier)) nextErrors.identifier = validatePhone(identifier)!;
+
+    const pwErr = validatePassword(password);
+    if (pwErr) nextErrors.password = pwErr;
+    if (captchaRequired && !captchaToken) nextErrors.captcha = "Complete the CAPTCHA verification";
+
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors);
       return;
     }
 
     setLoading(true);
+    setFormError("");
     try {
-      if (kind === "email") {
-        const res = await signIn("credentials", {
-          email: identifier.trim().toLowerCase(),
-          password,
-          rememberMe: String(rememberMe),
-          redirect: false,
-        });
-        if (res?.error) {
-          toast.error("Invalid email or password, or account temporarily locked");
-          return;
-        }
-        await finishLogin();
-        return;
-      }
-
-      const phone = identifier.trim().replace(/\s/g, "");
-      if (!otpSent) {
-        await sendOtp(phone);
-        return;
-      }
-
-      const res = await signIn("credentials", {
-        phone,
-        otp,
-        channel: "sms",
-        rememberMe: String(rememberMe),
-        redirect: false,
-      });
+      const res =
+        kind === "email"
+          ? await signIn("credentials", {
+              email: identifier.trim().toLowerCase(),
+              password,
+              rememberMe: String(rememberMe),
+              redirect: false,
+            })
+          : await signIn("credentials", {
+              phone: identifier.trim().replace(/\s/g, ""),
+              password,
+              rememberMe: String(rememberMe),
+              redirect: false,
+            });
       if (res?.error) {
-        toast.error("Invalid or expired code");
+        setFormError("Invalid credentials or account temporarily locked");
         return;
       }
-      await finishLogin();
+
+      await bootstrapAuthSession(rememberMe);
+      await completeAuthRedirect();
     } finally {
       setLoading(false);
     }
   };
 
-  const submitLabel =
-    kind === "email" ? "Sign in" : otpSent ? "Verify & sign in" : "Send verification code";
-
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="Sign in with your work email or registered mobile number."
+      subtitle="Sign in to your dashboard"
       footer={
         <p className="text-center text-sm text-slate-600">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="font-semibold text-[#1B1538] hover:underline">
-            Create account
+            Create one free
           </Link>
         </p>
       }
     >
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
-          <Label>Email or mobile number</Label>
+          <Label htmlFor="identifier">Email or mobile number</Label>
           <div className="relative mt-1.5">
             {kind === "phone" ? (
               <Smartphone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -159,69 +144,71 @@ export default function LoginPage() {
               <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             )}
             <Input
+              id="identifier"
               type="text"
               autoComplete="username"
+              autoFocus
               required
-              placeholder="you@company.com or +91 98765 43210"
-              className="pl-10"
+              placeholder="Email or +91 mobile"
+              className={`pl-10 ${fieldErrors.identifier || identifierError ? "border-red-400" : ""}`}
               value={identifier}
-              onChange={(e) => handleIdentifierChange(e.target.value)}
+              onChange={(e) => {
+                setIdentifier(e.target.value);
+                clearErrorsOnChange();
+              }}
             />
           </div>
+          {(fieldErrors.identifier || identifierError) && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.identifier ?? identifierError}</p>
+          )}
         </div>
 
-        {kind === "email" && (
-          <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <Label>Password</Label>
-              <Link href="/forgot-password" className="text-xs font-medium text-[#1B1538] hover:underline">
-                Forgot password?
-              </Link>
-            </div>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                type="password"
-                required
-                placeholder="••••••••"
-                className="pl-10"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <Link href="/forgot-password" className="text-xs font-medium text-[#1B1538] hover:underline">
+              Forgot password?
+            </Link>
           </div>
-        )}
-
-        {kind === "phone" && (
-          <div className="space-y-4">
-            {!otpSent ? (
-              <p className="text-sm text-slate-600">
-                We&apos;ll send a one-time code to this number to sign you in.
-              </p>
-            ) : (
-              <>
-                <OtpInput value={otp} onChange={setOtp} label="Verification code" />
-                {devHint && (
-                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    Dev mode OTP: <strong>{devHint}</strong>
-                  </p>
-                )}
-                <button
-                  type="button"
-                  className="text-sm text-slate-500 hover:text-[#1B1538] disabled:opacity-50"
-                  onClick={() => sendOtp(identifier.trim().replace(/\s/g, ""))}
-                  disabled={loading || !canResend}
-                >
-                  {canResend ? "Resend code" : `Resend in ${seconds}s`}
-                </button>
-              </>
-            )}
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              placeholder="Your password"
+              className={`pl-10 pr-10 ${fieldErrors.password || passwordError ? "border-red-400" : ""}`}
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                clearErrorsOnChange();
+              }}
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
-        )}
+          {(fieldErrors.password || passwordError) && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.password ?? passwordError}</p>
+          )}
+        </div>
 
-        {(kind === "phone" && !otpSent) || kind === "email" ? (
-          <TurnstileWidget onToken={setCaptchaToken} onExpire={() => setCaptchaToken("")} />
-        ) : null}
+        <div>
+          <TurnstileWidget
+            onToken={(token) => {
+              setCaptchaToken(token);
+              setFieldErrors((prev) => ({ ...prev, captcha: undefined }));
+            }}
+            onExpire={() => setCaptchaToken("")}
+          />
+          {fieldErrors.captcha && <p className="mt-1 text-xs text-red-600">{fieldErrors.captcha}</p>}
+        </div>
 
         <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
           <input
@@ -233,20 +220,19 @@ export default function LoginPage() {
           Remember me for 30 days
         </label>
 
+        {formError && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>
+        )}
+
         <Button
           type="submit"
-          disabled={loading || !kind}
-          className="h-11 w-full rounded-full text-white"
+          disabled={!canSubmit}
+          className="h-11 w-full rounded-full text-white disabled:opacity-50"
           style={{ backgroundColor: "#1B1538" }}
         >
-          {loading ? "Please wait..." : submitLabel}
+          {loading ? "Signing in..." : "Sign In"}
         </Button>
       </form>
-
-      <p className="mt-4 text-center text-xs text-slate-500">
-        Demo: admin@synklydemo.io / Synkly@2026!
-      </p>
     </AuthShell>
   );
 }
-
