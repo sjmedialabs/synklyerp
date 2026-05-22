@@ -14,10 +14,10 @@ export const createBranchSchema = z.object({
   pincode: z.string().regex(/^\d{4,10}$/, "PIN code must be 4-10 digits"),
   area: z.string().min(2).max(255),
   address: z.string().optional(),
-  status: z.enum(branchStatusValues).default("active"),
-  designation: z.enum(branchDesignations).default("regular"),
-  enabled_modules: z.array(z.string()).default([]),
-  enabled_submodules: z.array(z.string()).default([]),
+  status: z.enum(branchStatusValues),
+  designation: z.enum(branchDesignations),
+  enabled_modules: z.array(z.string()),
+  enabled_submodules: z.array(z.string()),
 });
 
 export const updateBranchSchema = createBranchSchema.partial();
