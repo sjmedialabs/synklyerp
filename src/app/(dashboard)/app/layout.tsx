@@ -6,6 +6,8 @@ import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, Search, X } from "lucide-react";
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import { CommandPalette } from "@/components/sidebar/command-palette";
+import { MobileSidebar } from "@/components/sidebar/mobile-sidebar";
 import { NotificationCenter } from "@/components/layout/notification-center";
 import { UserMenu } from "@/components/layout/user-menu";
 import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
@@ -34,6 +36,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <SidebarHydration>
       <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+        <CommandPalette />
         <Toaster position="top-right" richColors />
         <aside
           className={`sticky top-0 z-20 hidden h-screen shrink-0 flex-col border-r border-slate-200 bg-white transition-[width] duration-300 ease-in-out dark:border-slate-800 dark:bg-slate-900 md:flex ${sidebarWidth}`}
@@ -127,7 +130,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </button>
               </div>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <AppSidebar collapsed={false} onNavigate={() => setMobileMenuOpen(false)} />
+                <MobileSidebar onNavigate={() => setMobileMenuOpen(false)} />
               </div>
             </aside>
           </div>

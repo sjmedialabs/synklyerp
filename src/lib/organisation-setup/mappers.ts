@@ -70,7 +70,7 @@ export function mapBranchRow(row: Record<string, unknown>, modules: { moduleCode
     state: row.state as string,
     city: row.city as string,
     pincode: (row.pincode as string | null) ?? null,
-    area: (row.area as string | null) ?? row.description ?? null,
+    area: (row.area as string | null) ?? (typeof row.description === "string" ? row.description : null),
     address: (row.address as string | null) ?? null,
     status: statusFromDb(String(row.status)),
     designation,

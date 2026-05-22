@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "tsx scripts/seed-supabase.ts",
+    "db:seed:sidebar": "tsx scripts/seed-sidebar-menus.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -15,16 +15,6 @@ export async function GET() {
       color: type.color,
       themeColor: type.themeColor,
       sortOrder: type.sortOrder,
-      subcategories: type.subcategories.map((sub) => ({
-        id: sub.id,
-        name: sub.name,
-        slug: sub.slug,
-        description: sub.description,
-        legacyKey: sub.legacyKey,
-        icon: sub.icon,
-        sortOrder: sub.sortOrder,
-        enabledModules: sub.enabledModules,
-      })),
       defaultModules: type.defaultConfig.erpModules,
       defaultSubmodules: type.defaultConfig.erpSubmodules,
     }));
