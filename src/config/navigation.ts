@@ -84,6 +84,13 @@ export const APP_NAVIGATION: NavItem[] = [
     icon: Briefcase,
     children: [
       { id: "leads", label: "Lead Management", href: "/app/sales/leads", status: "built" },
+      { id: "lead-capture", label: "Lead Capture Hub", href: "/app/sales/capture", status: "built" },
+      { id: "pipelines", label: "Sales Pipelines", href: "/app/sales/pipelines", status: "built" },
+      { id: "crm-automation", label: "CRM Automation", href: "/app/sales/automation", status: "built" },
+      { id: "duplicates", label: "Duplicate Queue", href: "/app/sales/duplicates", status: "built" },
+      { id: "crm-reports", label: "CRM Reports", href: "/app/sales/reports", status: "built" },
+      { id: "communication", label: "Communication Hub", href: "/app/sales/communication", status: "built" },
+      { id: "campaigns", label: "Campaigns", href: "/app/sales/campaigns", status: "built" },
       { id: "orders", label: "Orders & Invoices", href: "/app/sales/orders", status: "pending" },
       { id: "customers", label: "Customer Management", href: "/app/sales/customers", status: "pending" },
       { id: "targets", label: "Targets & Quotas", href: "/app/sales/targets", status: "pending" },

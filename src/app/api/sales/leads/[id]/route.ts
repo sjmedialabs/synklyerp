@@ -2,6 +2,7 @@ import { apiError, apiSuccess } from "@/lib/api/response";
 import { handleApiError } from "@/lib/tenant/context";
 import { getTenantApiContext } from "@/lib/rbac/api-guard";
 import { P } from "@/lib/rbac/checks";
+import { logLeadActivity } from "@/repositories/sales/crm/lead-attribution";
 import * as repo from "@/repositories/sales/leads";
 import { leadSchema } from "@/validators/sales";
 import { z } from "zod";
@@ -21,9 +22,21 @@ export async function GET(req: Request, { params }: Params) {
 
 export async function PATCH(req: Request, { params }: Params) {
   try {
-    const { tenantId } = await getTenantApiContext(P.sales.leads.update, { req });
+    const ctx = await getTenantApiContext(P.sales.leads.update, { req });
     const { id } = await params;
-    return apiSuccess(await repo.updateLead(tenantId, id, leadSchema.partial().parse(await req.json())));
+    const body = leadSchema.partial().parse(await req.json());
+    const lead = await repo.updateLead(ctx.tenantId, id, body);
+    if (body.status) {
+      await logLeadActivity({
+        tenantId: ctx.tenantId,
+        leadId: id,
+        activityType: "status_changed",
+        title: "Status updated",
+        description: `Status set to ${body.status}`,
+        actorId: ctx.userId,
+      });
+    }
+    return apiSuccess(lead);
   } catch (error) {
     if (error instanceof z.ZodError) return apiError("Validation failed", 400, "VALIDATION_ERROR", error.flatten());
     const err = handleApiError(error);

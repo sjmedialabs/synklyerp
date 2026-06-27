@@ -63,6 +63,9 @@ export type Lead = {
   leadType: string;
   serviceId: string | null;
   source: string | null;
+  originalSource: string | null;
+  crmLeadSourceId: string | null;
+  leadScore: number;
   assignedTo: string | null;
   status: string;
   progress: number;
@@ -211,6 +214,9 @@ export function mapLead(row: Record<string, unknown>): Lead {
     leadType: row.lead_type as string,
     serviceId: (row.service_id as string) ?? null,
     source: (row.source as string) ?? null,
+    originalSource: (row.original_source as string) ?? null,
+    crmLeadSourceId: (row.crm_lead_source_id as string) ?? null,
+    leadScore: Number(row.lead_score ?? 0),
     assignedTo: (row.assigned_to as string) ?? null,
     status: row.status as string,
     progress: Number(row.progress ?? 0),

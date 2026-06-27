@@ -57,7 +57,13 @@ export const NAV_ITEM_ICONS: Record<string, string> = {
   orders: "shopping-bag",
   customers: "users",
   targets: "target",
+  "lead-capture-hub": "radio",
+  "crm-pipelines": "git-branch",
   "crm-automation": "zap",
+  "crm-duplicates": "copy",
+  "crm-reports": "bar-chart-2",
+  "crm-communication": "mail",
+  "crm-campaigns": "megaphone",
   "api-forms": "code",
   "customer-support": "headphones",
 

@@ -6,6 +6,7 @@ export const PUBLIC_PATH_PREFIXES = [
   "/forgot-password",
   "/api-docs",
   "/p",
+  "/f",
   "/blog",
   "/robots.txt",
   "/sitemap.xml",

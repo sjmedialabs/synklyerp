@@ -50,6 +50,8 @@ export async function createLead(tenantId: string, input: Record<string, unknown
     lead_type: String(input.leadType),
     service_id: input.serviceId || null,
     source: input.source ? String(input.source) : null,
+    original_source: input.originalSource ? String(input.originalSource) : input.source ? String(input.source) : null,
+    crm_lead_source_id: input.crmLeadSourceId || null,
     assigned_to: input.assignedTo || null,
     status: String(input.status ?? "FRESH_LEAD"),
     notes: input.notes ? String(input.notes) : null,
@@ -69,6 +71,7 @@ export async function updateLead(tenantId: string, id: string, input: Record<str
   if (input.serviceId !== undefined) payload.service_id = input.serviceId || null;
   if (input.source !== undefined) payload.source = input.source || null;
   if (input.assignedTo !== undefined) payload.assigned_to = input.assignedTo || null;
+  // original_source is immutable — never update after creation
   if (input.status !== undefined) payload.status = input.status;
   if (input.notes !== undefined) payload.notes = input.notes || null;
   const { data, error } = await supabase.from("leads").update(payload).eq("tenant_id", tenantId).eq("id", id).is("deleted_at", null).select(leadSelect).single();

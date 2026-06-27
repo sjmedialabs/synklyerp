@@ -61,6 +61,7 @@ const API_MODULE_EXEMPT_PREFIXES = [
   "/api/dashboard",
   "/api/activity-logs",
   "/api/notifications",
+  "/api/v1/public",
 ];
 
 /** Returns ERP module required for a REST path, or null if unrestricted. */

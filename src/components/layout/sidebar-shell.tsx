@@ -9,6 +9,11 @@ export function SidebarHydration({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setHydrated(true);
+    try {
+      localStorage.removeItem("synkly-sidebar");
+    } catch {
+      /* ignore */
+    }
   }, [setHydrated]);
 
   return <>{children}</>;
