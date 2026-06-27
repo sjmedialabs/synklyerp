@@ -18,6 +18,9 @@ function mapRow(row: Record<string, unknown>): SidebarMenuRecord {
     sortOrder: Number(row.sort_order ?? 0),
     isVisible: Boolean(row.is_visible ?? true),
     isActive: Boolean(row.is_active ?? true),
+    isSystem: Boolean(row.is_system ?? false),
+    isAlwaysVisible: Boolean(row.is_always_visible ?? false),
+    level: Number(row.level ?? 0),
     requiredPlan: (row.required_plan as string | null) ?? null,
     requiredBusinessTypes: Array.isArray(row.required_business_types)
       ? (row.required_business_types as string[])

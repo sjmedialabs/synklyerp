@@ -117,7 +117,7 @@ export default function SuperAdminPlansPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Subscription Plans</h1>
-          <p className="text-slate-400 text-sm mt-1">Manage pricing, modules, and feature access per plan.</p>
+          <p className="text-slate-600 text-sm mt-1">Manage pricing, modules, and feature access per plan.</p>
         </div>
         <Button
           className="bg-indigo-600"
@@ -133,12 +133,12 @@ export default function SuperAdminPlansPage() {
 
       {isLoading && <Loader2 className="h-5 w-5 animate-spin text-slate-400" />}
 
-      <div className="rounded-xl border border-slate-800 overflow-hidden">
+      <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-slate-900 border-b border-slate-800">
+          <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               {["Name", "Slug", "Type", "Monthly", "Modules", "Status", ""].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-slate-400 font-medium">
+                <th key={h} className="px-4 py-3 text-left text-slate-600 font-medium">
                   {h}
                 </th>
               ))}
@@ -146,7 +146,7 @@ export default function SuperAdminPlansPage() {
           </thead>
           <tbody>
             {plans.map((p) => (
-              <tr key={p.id} className="border-t border-slate-800">
+              <tr key={p.id} className="border-t border-slate-200">
                 <td className="px-4 py-3 font-medium">{p.name}</td>
                 <td className="px-4 py-3">{p.slug}</td>
                 <td className="px-4 py-3">{p.planType}</td>
@@ -196,7 +196,7 @@ export default function SuperAdminPlansPage() {
           <div className="sm:col-span-2">
             <Label>Features (one per line)</Label>
             <textarea
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
               rows={4}
               value={form.featuresText}
               onChange={(e) => setForm((f) => ({ ...f, featuresText: e.target.value }))}

@@ -21,7 +21,7 @@ export async function completeAuthRedirect() {
   const role = session?.user?.role;
   const target = role === "SUPERADMIN" ? "/superadmin" : "/app";
   if (session?.user?.onboardingCompleted === false && role !== "SUPERADMIN") {
-    window.location.href = role === "ADMIN" ? "/onboarding" : "/onboarding?waiting=1";
+    window.location.href = role === "ADMIN" ? "/onboarding/business-type" : "/onboarding?waiting=1";
     return;
   }
   window.location.href = target;

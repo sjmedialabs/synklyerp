@@ -5,6 +5,7 @@ import {
   filterMenusByTemplate,
 } from "@/lib/sidebar/menu-renderer.service";
 import type { SidebarResponse, SidebarRenderContext } from "@/lib/sidebar/types";
+import { isPathAllowedWhenSubscriptionExpired } from "@/lib/platform/tenant-subscription-service";
 import { listAllSidebarMenus, countSidebarMenus } from "@/repositories/sidebar/sidebar-menus";
 import {
   getTenantSidebarConfig,
@@ -12,6 +13,15 @@ import {
 } from "@/repositories/sidebar/sidebar-templates";
 import { getUserMenuPreferences } from "@/repositories/sidebar/user-menu-preferences";
 import { listTenantEnabledSubmoduleCodes } from "@/repositories/provisioning/tenant-enabled-modules";
+import {
+  filterMenusByAssignment,
+  getEnabledMenuIdsForCategory,
+  resolveTenantBusinessCategoryId,
+} from "@/lib/provisioning/category-feature-service";
+import {
+  getAlwaysVisibleSlugsFromDb,
+  getOrganizationMenuOverrides,
+} from "@/lib/platform/erp-feature-service";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMissingSchemaError } from "@/lib/db/schema-errors";
 import { listUserPermissions } from "@/lib/rbac/permissions";
@@ -25,8 +35,9 @@ export class SidebarService {
     role: AppRole;
     enabledModules: string[];
     businessType?: string | null;
+    isPaymentRequired?: boolean;
   }): Promise<SidebarResponse> {
-    const [menus, template, tenantConfig, prefs, planSlug, submodules, permissions, featureFlags] =
+    const [menus, template, tenantConfig, prefs, planSlug, submodules, permissions, featureFlags, alwaysVisibleSlugs, orgOverrides] =
       await Promise.all([
         listAllSidebarMenus(),
         resolveTenantSidebarTemplate(input.tenantId),
@@ -36,15 +47,29 @@ export class SidebarService {
         listTenantEnabledSubmoduleCodes(input.tenantId).catch(() => [] as string[]),
         listUserPermissions(input.userId, input.role, input.tenantId),
         this.getTenantFeatureFlags(input.tenantId),
+        getAlwaysVisibleSlugsFromDb(),
+        getOrganizationMenuOverrides(input.tenantId),
       ]);
 
     if (!menus.length) {
-      return this.buildFallbackSidebar(input);
+      const fallback = this.buildFallbackSidebar(input);
+      return input.isPaymentRequired ? filterSidebarForPaymentRequired(fallback) : fallback;
     }
 
+    let categoryMenus = menus;
+    const businessCategoryId = await resolveTenantBusinessCategoryId(input.tenantId);
+    if (businessCategoryId) {
+      const assignedMenuIds = await getEnabledMenuIdsForCategory(businessCategoryId);
+      if (assignedMenuIds.size > 0) {
+        categoryMenus = filterMenusByAssignment(menus, assignedMenuIds, alwaysVisibleSlugs);
+      }
+    }
+
+    categoryMenus = applyOrganizationOverrides(categoryMenus, orgOverrides);
+
     const filteredMenus = template?.menuIds.length
-      ? filterMenusByTemplate(menus, template.menuIds)
-      : menus;
+      ? filterMenusByTemplate(categoryMenus, template.menuIds)
+      : categoryMenus;
 
     const ctx: SidebarRenderContext = {
       tenantId: input.tenantId,
@@ -58,12 +83,13 @@ export class SidebarService {
       permissions,
       featureFlags,
       hiddenMenuSlugs: new Set(tenantConfig?.hidden_menu_slugs ?? []),
+      alwaysVisibleSlugs,
+      orgMenuOverrides: orgOverrides,
       isAdmin: input.role === "ADMIN" || input.role === "SUPERADMIN",
     };
 
     const sections = buildSidebarSections(filteredMenus, ctx);
-
-    return {
+    const response: SidebarResponse = {
       sections,
       favorites: prefs.favoriteMenuSlugs,
       recent: prefs.recentPaths,
@@ -76,6 +102,8 @@ export class SidebarService {
         source: "database",
       },
     };
+
+    return input.isPaymentRequired ? filterSidebarForPaymentRequired(response) : response;
   }
 
   private async getTenantPlanSlug(tenantId: string): Promise<string | null> {
@@ -199,3 +227,53 @@ function navItemToMenu(item: NavItem): SidebarResponse["sections"][number]["menu
 }
 
 export const sidebarService = new SidebarService();
+
+function applyOrganizationOverrides(
+  menus: Awaited<ReturnType<typeof listAllSidebarMenus>>,
+  overrides: Map<string, "enable" | "disable">
+) {
+  if (!overrides.size) return menus;
+  const disabledIds = new Set(
+    [...overrides.entries()].filter(([, t]) => t === "disable").map(([id]) => id)
+  );
+  if (!disabledIds.size) return menus;
+
+  const collectDescendants = (id: string): string[] => {
+    const children = menus.filter((m) => m.parentId === id).flatMap((c) => collectDescendants(c.id));
+    return [id, ...children];
+  };
+
+  const blocked = new Set<string>();
+  for (const id of disabledIds) {
+    for (const d of collectDescendants(id)) blocked.add(d);
+  }
+
+  return menus.filter((m) => !blocked.has(m.id));
+}
+
+function filterSidebarForPaymentRequired(sidebar: SidebarResponse): SidebarResponse {
+  const filterMenus = (
+    menus: SidebarResponse["sections"][number]["menus"]
+  ): SidebarResponse["sections"][number]["menus"] =>
+    menus
+      .map((menu) => ({
+        ...menu,
+        children: filterMenus(menu.children),
+      }))
+      .filter((menu) => {
+        if (menu.path && isPathAllowedWhenSubscriptionExpired(menu.path)) return true;
+        return menu.children.length > 0;
+      });
+
+  return {
+    ...sidebar,
+    sections: sidebar.sections
+      .map((section) => ({
+        ...section,
+        menus: filterMenus(section.menus),
+      }))
+      .filter((section) => section.menus.length > 0),
+    favorites: [],
+    recent: [],
+  };
+}

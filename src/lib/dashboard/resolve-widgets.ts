@@ -16,6 +16,8 @@ export type ResolveDashboardInput = {
   businessType: string;
   industrySubtype?: string | null;
   tenantName?: string | null;
+  /** When set, widgets are gated by business category feature assignments */
+  assignedModuleKeys?: Set<string> | null;
 };
 
 export type ResolvedDashboard = {
@@ -38,7 +40,10 @@ function hasPermission(
   return permissions.has(permissionKey(check.module, check.feature, action));
 }
 
-function moduleEnabled(enabled: Set<string>, moduleKey?: string) {
+function moduleEnabled(enabled: Set<string>, moduleKey?: string, assigned?: Set<string> | null) {
+  if (assigned && assigned.size > 0 && moduleKey) {
+    if (!assigned.has(moduleKey)) return false;
+  }
   if (!moduleKey || moduleKey === "organisation") return true;
   return enabled.has(moduleKey);
 }
@@ -71,7 +76,7 @@ function filterWidget(
   enabled: Set<string>
 ) {
   if (!roleAllowed(input.role, widget.roles)) return false;
-  if (!moduleEnabled(enabled, widget.moduleKey)) return false;
+  if (!moduleEnabled(enabled, widget.moduleKey, input.assignedModuleKeys)) return false;
   if (!hasPermission(permSet, input.role, widget.permission)) return false;
   return true;
 }
@@ -79,6 +84,7 @@ function filterWidget(
 export function resolveDashboard(input: ResolveDashboardInput): ResolvedDashboard {
   const permSet = new Set(input.permissions);
   const enabled = new Set(input.enabledModules);
+  const assigned = input.assignedModuleKeys;
   const industrySubtype = input.industrySubtype ?? null;
 
   const kpis = DASHBOARD_KPI_WIDGETS.filter((w) => filterWidget(w, input, permSet, enabled)).sort(
@@ -95,7 +101,7 @@ export function resolveDashboard(input: ResolveDashboardInput): ResolvedDashboar
   }).sort((a, b) => a.priority - b.priority);
 
   const shortcuts = DASHBOARD_SHORTCUTS.filter((s) => {
-    if (!moduleEnabled(enabled, s.moduleKey)) return false;
+    if (!moduleEnabled(enabled, s.moduleKey, assigned)) return false;
     if (!hasPermission(permSet, input.role, s.permission)) return false;
     if (s.businessTypes?.length && !s.businessTypes.includes(input.businessType as BusinessType)) {
       return false;

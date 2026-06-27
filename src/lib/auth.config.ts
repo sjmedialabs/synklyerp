@@ -19,6 +19,10 @@ export const authConfig = {
         token.businessType = user.businessType;
         token.onboardingCompleted = user.onboardingCompleted;
         token.enabledModules = user.enabledModules;
+        token.tenantStatus = user.tenantStatus;
+        token.subscriptionExpired = user.subscriptionExpired;
+        token.isPaymentRequired = user.isPaymentRequired;
+        token.expiresAt = user.expiresAt;
         token.rememberMe = user.rememberMe === true;
         const maxAge = token.rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24;
         token.exp = Math.floor(Date.now() / 1000) + maxAge;
@@ -31,6 +35,10 @@ export const authConfig = {
           const meta = await getTenantSessionMeta(token.tenantId as string);
           token.onboardingCompleted = meta.onboardingCompleted;
           token.enabledModules = meta.enabledModules;
+          token.tenantStatus = meta.tenantStatus;
+          token.subscriptionExpired = meta.subscriptionExpired;
+          token.isPaymentRequired = meta.isPaymentRequired;
+          token.expiresAt = meta.expiresAt;
         }
       }
       return token;
@@ -44,6 +52,10 @@ export const authConfig = {
         session.user.businessType = (token.businessType as string | null) ?? null;
         session.user.onboardingCompleted = token.onboardingCompleted as boolean | undefined;
         session.user.enabledModules = (token.enabledModules as string[] | undefined) ?? [];
+        session.user.tenantStatus = token.tenantStatus as string | undefined;
+        session.user.subscriptionExpired = token.subscriptionExpired as boolean | undefined;
+        session.user.isPaymentRequired = token.isPaymentRequired as boolean | undefined;
+        session.user.expiresAt = token.expiresAt as string | null | undefined;
       }
       return session;
     },

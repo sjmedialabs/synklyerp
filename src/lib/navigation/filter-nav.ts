@@ -2,12 +2,7 @@ import { APP_NAVIGATION, type NavItem } from "@/config/navigation";
 import { NAV_ID_TO_MODULE } from "@/constants/onboarding";
 
 const ALWAYS_VISIBLE = new Set(["dashboard", "setup", "account"]);
-const SETUP_ALWAYS_VISIBLE = new Set([
-  "business-type",
-  "organisation-hub",
-  "company-info",
-  "branch-mgmt",
-]);
+const SETUP_ALWAYS_VISIBLE = new Set(["business-type", "company-info", "branch-mgmt"]);
 
 function filterItem(
   item: NavItem,

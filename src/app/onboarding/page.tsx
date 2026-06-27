@@ -8,7 +8,6 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BusinessTypeStep } from "@/components/onboarding/business-type-step";
 import { CategoryStep } from "@/components/onboarding/category-step";
 import { SubcategoryStep } from "@/components/onboarding/subcategory-step";
 import { OrganizationStep } from "@/components/onboarding/organization-step";
@@ -25,7 +24,6 @@ import {
   useOnboardingSpecializations,
   useSaveOnboardingStep,
 } from "@/hooks/onboarding/use-onboarding-flow";
-import { useBusinessTypes } from "@/hooks/provisioning/use-business-types";
 import { resolveOnboardingProvisioning } from "@/lib/modules/activation";
 import { getBusinessConfigByLegacyKey } from "@/business-configs";
 import { useOnboardingStore } from "@/stores/onboarding-store";
@@ -59,7 +57,6 @@ export default function OnboardingPage() {
   const { data: specializations = [], isLoading: specsLoading } = useOnboardingSpecializations(
     selection.businessCategoryId
   );
-  const { data: catalogWithSubs } = useBusinessTypes();
 
   const saveStep = useSaveOnboardingStep();
   const complete = useCompleteOnboarding();
@@ -83,20 +80,18 @@ export default function OnboardingPage() {
     }
   }, [sessionData?.completed, router]);
 
+  useEffect(() => {
+    if (!isWaiting && !sessionLoading && step === 0 && !selection.businessTypeId) {
+      router.replace("/onboarding/business-type");
+    }
+    if (step === 0 && selection.businessTypeId) {
+      setStep(1);
+    }
+  }, [isWaiting, sessionLoading, step, selection.businessTypeId, router, setStep]);
+
   const selectedType = businessTypes.find((t) => t.id === selection.businessTypeId);
   const selectedCategory = categories.find((c) => c.id === selection.businessCategoryId);
   const selectedSpec = specializations.find((s) => s.id === selection.businessSpecializationId);
-
-  const categoriesByType = useMemo(() => {
-    const map: Record<string, { label: string; icon?: string | null }[]> = {};
-    for (const type of catalogWithSubs ?? []) {
-      map[type.id] = type.subcategories.map((sub) => ({
-        label: sub.name,
-        icon: null,
-      }));
-    }
-    return map;
-  }, [catalogWithSubs]);
 
   const provisioning = useMemo(() => {
     if (!selectedType || !selectedCategory) {
@@ -167,7 +162,11 @@ export default function OnboardingPage() {
   };
 
   const back = () => {
-    const prev = Math.max(0, step - 1);
+    if (step === 1) {
+      router.push("/onboarding/business-type");
+      return;
+    }
+    const prev = Math.max(1, step - 1);
     setStep(prev);
     void persistStep(prev);
   };
@@ -283,21 +282,6 @@ export default function OnboardingPage() {
 
       <div className="flex-1 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-8">
         <AnimatePresence mode="wait">
-          {step === 0 && (
-            <BusinessTypeStep
-              key="type"
-              types={businessTypes}
-              selectedId={selection.businessTypeId}
-              onSelect={(id) =>
-                setSelection({
-                  businessTypeId: id,
-                  businessCategoryId: null,
-                  businessSpecializationId: null,
-                })
-              }
-              categoriesByType={categoriesByType}
-            />
-          )}
           {step === 1 && (
             <CategoryStep
               key="category"
@@ -354,7 +338,7 @@ export default function OnboardingPage() {
       </div>
 
       <footer className="mt-6 flex items-center justify-between gap-4">
-        <Button type="button" variant="outline" onClick={back} disabled={step === 0 || saveStep.isPending}>
+        <Button type="button" variant="outline" onClick={back} disabled={saveStep.isPending}>
           <ChevronLeft size={16} className="mr-1" />
           Back
         </Button>

@@ -5,7 +5,6 @@ import { Loader2, LogOut, Search } from "lucide-react";
 import { secureSignOut } from "@/lib/auth/client";
 import { SidebarSection } from "@/components/sidebar/sidebar-section";
 import { SidebarFavorites } from "@/components/sidebar/sidebar-favorites";
-import { SidebarRecent } from "@/components/sidebar/sidebar-recent";
 import { useSidebar, useToggleFavorite } from "@/hooks/useSidebar";
 import type { RenderedSidebarMenu, RenderedSidebarSection } from "@/lib/sidebar/types";
 
@@ -31,6 +30,7 @@ export function SidebarLayout({ collapsed, onNavigate }: SidebarLayoutProps) {
   const toggleFavorite = useToggleFavorite();
   const [query, setQuery] = useState("");
   const [signOutLoading, setSignOutLoading] = useState(false);
+  const [globalExpand, setGlobalExpand] = useState<"expand" | "collapse" | null>(null);
 
   const favorites = useMemo(() => new Set(data?.favorites ?? []), [data?.favorites]);
 
@@ -111,7 +111,22 @@ export function SidebarLayout({ collapsed, onNavigate }: SidebarLayoutProps) {
               favorites={favorites}
               onNavigate={onNavigate}
             />
-            <SidebarRecent recent={data.recent} onNavigate={onNavigate} />
+            <div className="mb-2 flex gap-1 px-1">
+              <button
+                type="button"
+                onClick={() => setGlobalExpand("expand")}
+                className="flex-1 rounded-md px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
+              >
+                Expand all
+              </button>
+              <button
+                type="button"
+                onClick={() => setGlobalExpand("collapse")}
+                className="flex-1 rounded-md px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
+              >
+                Collapse all
+              </button>
+            </div>
           </>
         )}
 
@@ -122,6 +137,7 @@ export function SidebarLayout({ collapsed, onNavigate }: SidebarLayoutProps) {
               section={section}
               collapsed={collapsed}
               favorites={favorites}
+              globalExpand={globalExpand}
               onToggleFavorite={handleToggleFavorite}
               onNavigate={onNavigate}
             />

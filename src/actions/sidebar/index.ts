@@ -21,6 +21,7 @@ export async function getSidebarAction() {
     role: session.user.role,
     enabledModules: session.user.enabledModules ?? [],
     businessType: session.user.businessType ?? null,
+    isPaymentRequired: session.user.isPaymentRequired === true,
   });
 }
 

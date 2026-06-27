@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, GitBranch, FileText, ChevronRight, Shuffle } from "lucide-react";
+import { GitBranch, FileText, ChevronRight, Shuffle } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 
 const SETUP_MODULES = [
@@ -22,12 +22,6 @@ const SETUP_MODULES = [
     description: "Create branches, assign modules, and control operational visibility per location.",
     href: "/app/setup/organisation/branches",
     icon: GitBranch,
-  },
-  {
-    title: "Organisation Directory",
-    description: "Taxes, divisions, designations, users, and classic organisation records.",
-    href: "/app/organisation/taxes",
-    icon: Building2,
   },
 ];
 

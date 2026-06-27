@@ -98,7 +98,7 @@ export default function SuperAdminCmsPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">CMS Pages</h1>
-          <p className="mt-1 text-sm text-slate-400">Public pages at /p/[slug] when published.</p>
+          <p className="mt-1 text-sm text-slate-600">Public pages at /p/[slug] when published.</p>
         </div>
         <Button
           className="bg-indigo-600"
@@ -114,12 +114,12 @@ export default function SuperAdminCmsPage() {
 
       {isLoading && <Loader2 className="h-5 w-5 animate-spin text-slate-400" />}
 
-      <div className="overflow-hidden rounded-xl border border-slate-800">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="border-b border-slate-800 bg-slate-900">
+          <thead className="border-b border-slate-200 bg-slate-50">
             <tr>
               {["Title", "Slug", "Status", "Updated", ""].map((h) => (
-                <th key={h} className="px-4 py-3 text-left font-medium text-slate-400">
+                <th key={h} className="px-4 py-3 text-left font-medium text-slate-600">
                   {h}
                 </th>
               ))}
@@ -127,10 +127,10 @@ export default function SuperAdminCmsPage() {
           </thead>
           <tbody>
             {pages.map((p) => (
-              <tr key={p.id} className="border-t border-slate-800">
+              <tr key={p.id} className="border-t border-slate-200">
                 <td className="px-4 py-3 font-medium">{p.title}</td>
                 <td className="px-4 py-3">
-                  <a href={`/p/${p.slug}`} className="text-indigo-400 hover:underline" target="_blank" rel="noreferrer">
+                  <a href={`/p/${p.slug}`} className="text-indigo-600 hover:underline" target="_blank" rel="noreferrer">
                     /p/{p.slug}
                   </a>
                 </td>
@@ -167,7 +167,7 @@ export default function SuperAdminCmsPage() {
           <div>
             <Label>Content (HTML)</Label>
             <textarea
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-mono"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-mono"
               rows={8}
               value={form.contentHtml}
               onChange={(e) => setForm((f) => ({ ...f, contentHtml: e.target.value }))}

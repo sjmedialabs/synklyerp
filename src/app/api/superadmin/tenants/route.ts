@@ -1,5 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { apiError, apiSuccess, parsePagination, paginationMeta } from "@/lib/api/response";
+import { getSubcategoryById } from "@/repositories/provisioning/business-types";
+import { getTenantBusinessProfile } from "@/repositories/provisioning/tenant-business-profile";
+import { getTenantSubscriptionView } from "@/lib/platform/tenant-subscription-service";
 import { handleApiError, requireSuperAdmin } from "@/lib/tenant/context";
 
 export async function GET(req: Request) {
@@ -34,21 +37,33 @@ export async function GET(req: Request) {
 
     const enriched = await Promise.all(
       ((data ?? []) as TenantRow[]).map(async (t) => {
-        const [{ count: usersCount }, { count: branchesCount }] = await Promise.all([
-          supabase.from("users").select("id", { count: "exact", head: true }).eq("tenant_id", t.id),
-          supabase.from("branches").select("id", { count: "exact", head: true }).eq("tenant_id", t.id).is("deleted_at", null),
+        const [profile, subscription] = await Promise.all([
+          getTenantBusinessProfile(t.id),
+          getTenantSubscriptionView(t.id).catch(() => null),
         ]);
+
+        let businessTypeSlug: string | null = null;
+        let businessSubcategorySlug: string | null = null;
+        if (profile) {
+          const match = await getSubcategoryById(profile.businessSubcategoryId);
+          businessTypeSlug = match?.type.slug ?? null;
+          businessSubcategorySlug = match?.subcategory.slug ?? null;
+        }
+
         return {
           id: t.id,
           name: t.name,
           businessType: t.business_type,
           industrySubtype: t.industry_subtype,
+          businessTypeSlug,
+          businessSubcategorySlug,
           plan: t.plan,
           contactEmail: t.contact_email,
-          status: t.status,
+          status: subscription?.tenantStatus ?? t.status,
+          subscriptionStatus: subscription?.subscriptionStatus ?? null,
+          expiresAt: subscription?.expiresAt ?? null,
+          isExpired: subscription?.isExpired ?? false,
           createdAt: t.created_at,
-          usersCount: usersCount ?? 0,
-          branchesCount: branchesCount ?? 0,
         };
       })
     );

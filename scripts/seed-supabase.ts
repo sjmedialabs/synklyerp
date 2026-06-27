@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./load-env";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { DEFAULT_DESIGNATIONS } from "../src/constants/roles";

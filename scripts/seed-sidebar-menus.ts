@@ -1,5 +1,21 @@
-import { SIDEBAR_MENU_CATALOG, type MenuSeedNode } from "@/lib/sidebar/menu-seed-data";
+import "./load-env";
+import { REMOVED_MENU_SLUGS, SIDEBAR_MENU_CATALOG, type MenuSeedNode } from "@/lib/sidebar/menu-seed-data";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+async function pruneRemovedMenus() {
+  const supabase = createAdminClient();
+  const slugs = [...REMOVED_MENU_SLUGS];
+  const now = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("sidebar_menus")
+    .update({ is_active: false, is_visible: false, deleted_at: now })
+    .in("slug", slugs)
+    .is("deleted_at", null);
+
+  if (error) throw error;
+  console.log("Removed legacy sidebar items:", slugs.join(", "));
+}
 
 async function seedNode(node: MenuSeedNode, parentId: string | null, sortOrder: number): Promise<string> {
   const supabase = createAdminClient();
@@ -25,6 +41,7 @@ async function seedNode(node: MenuSeedNode, parentId: string | null, sortOrder: 
     status: node.status ?? "built",
     is_visible: true,
     is_active: true,
+    deleted_at: null,
   };
 
   const { data: existing } = await supabase
@@ -88,6 +105,7 @@ async function linkTemplateMenus() {
 
 async function main() {
   console.log("Seeding sidebar menus...");
+  await pruneRemovedMenus();
   for (let i = 0; i < SIDEBAR_MENU_CATALOG.length; i++) {
     await seedNode(SIDEBAR_MENU_CATALOG[i], null, i * 10);
   }

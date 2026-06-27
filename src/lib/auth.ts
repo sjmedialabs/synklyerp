@@ -37,6 +37,10 @@ async function buildAuthUser(
     businessType: user.businessType,
     onboardingCompleted: meta.onboardingCompleted,
     enabledModules: meta.enabledModules,
+    tenantStatus: meta.tenantStatus,
+    subscriptionExpired: meta.subscriptionExpired,
+    isPaymentRequired: meta.isPaymentRequired,
+    expiresAt: meta.expiresAt,
     rememberMe,
   };
 }

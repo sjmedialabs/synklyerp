@@ -33,8 +33,19 @@ function hasPermission(ctx: SidebarRenderContext, menu: SidebarMenuRecord): bool
   );
 }
 
+function isAlwaysVisibleSlug(ctx: SidebarRenderContext, menu: SidebarMenuRecord): boolean {
+  if (menu.isAlwaysVisible) return true;
+  if (ctx.alwaysVisibleSlugs?.has(menu.slug)) return true;
+  return ALWAYS_VISIBLE_SLUGS.has(menu.slug);
+}
+
+function orgOverrideBlocks(ctx: SidebarRenderContext, menu: SidebarMenuRecord): boolean {
+  const override = ctx.orgMenuOverrides?.get(menu.id);
+  return override === "disable";
+}
+
 function moduleAllowed(ctx: SidebarRenderContext, menu: SidebarMenuRecord): boolean {
-  if (ALWAYS_VISIBLE_SLUGS.has(menu.slug)) return true;
+  if (isAlwaysVisibleSlug(ctx, menu)) return true;
   if (menu.slug === "setup" || menu.parentId === null && menu.menuType === "section" && menu.slug === "account") {
     return true;
   }
@@ -68,7 +79,8 @@ function featureFlagAllowed(ctx: SidebarRenderContext, menu: SidebarMenuRecord):
 function isMenuVisible(ctx: SidebarRenderContext, menu: SidebarMenuRecord): boolean {
   if (!menu.isVisible || !menu.isActive) return false;
   if (ctx.hiddenMenuSlugs.has(menu.slug)) return false;
-  if (ALWAYS_VISIBLE_SLUGS.has(menu.slug)) return true;
+  if (orgOverrideBlocks(ctx, menu)) return false;
+  if (isAlwaysVisibleSlug(ctx, menu)) return true;
 
   if (!planMeetsRequirement(ctx.planSlug, menu.requiredPlan)) return false;
   if (!moduleAllowed(ctx, menu)) return false;
@@ -107,7 +119,7 @@ export function buildMenuTree(
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((menu) => {
       const childMenus = buildMenuTree(menus, ctx, menu.id);
-      if (!isMenuVisible(ctx, menu) && !ALWAYS_VISIBLE_SLUGS.has(menu.slug)) {
+      if (!isMenuVisible(ctx, menu) && !isAlwaysVisibleSlug(ctx, menu)) {
         if (menu.menuType === "section" || menu.menuType === "group") {
           return childMenus.length ? { ...toRenderedMenu(menu, childMenus)!, path: null } : null;
         }
@@ -132,7 +144,7 @@ export function buildSidebarSections(
     if (root.menuType === "section") {
       const children = buildMenuTree(menus, ctx, root.id);
       const sectionVisible =
-        ALWAYS_VISIBLE_SLUGS.has(root.slug) ||
+        isAlwaysVisibleSlug(ctx, root) ||
         isMenuVisible(ctx, root) ||
         children.length > 0;
 

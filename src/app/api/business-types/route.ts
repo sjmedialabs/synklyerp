@@ -12,8 +12,6 @@ export async function GET() {
       description: type.description,
       legacyKey: type.legacyKey,
       icon: type.icon,
-      color: type.color,
-      themeColor: type.themeColor,
       sortOrder: type.sortOrder,
       subcategories: type.subcategories.map((sub) => ({
         id: sub.id,

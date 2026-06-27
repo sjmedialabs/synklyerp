@@ -9,6 +9,8 @@ export type BusinessTypeCatalogItem = {
   slug: string;
   description: string | null;
   legacyKey: string | null;
+  icon: string | null;
+  sortOrder: number;
   subcategories: {
     id: string;
     name: string;

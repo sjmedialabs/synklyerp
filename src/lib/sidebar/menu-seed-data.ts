@@ -41,15 +41,14 @@ export const SIDEBAR_MENU_CATALOG: MenuSeedNode[] = [
     children: [
       { slug: "business-type", name: "Business Type", path: "/app/setup/business-type", icon: "layers", status: "built", sortOrder: 1 },
       { slug: "company-info", name: "Company Information", path: "/app/setup/organisation/company-information", icon: "building", status: "built", sortOrder: 2 },
-      { slug: "organisation-hub", name: "Organization Directory", path: "/app/setup/organisation", icon: "network", status: "built", sortOrder: 3 },
-      { slug: "branch-mgmt", name: "Branches", path: "/app/setup/organisation/branches", icon: "map-pin", status: "built", sortOrder: 4 },
-      { slug: "branches", name: "Branch Management", path: "/app/organisation/branches", icon: "git-branch", permissionModule: "organisation", permissionFeature: "branches", status: "built", sortOrder: 5 },
-      { slug: "divisions", name: "Divisions", path: "/app/organisation/divisions", icon: "network", permissionModule: "organisation", permissionFeature: "divisions", status: "built", sortOrder: 6 },
-      { slug: "designations", name: "Designations", path: "/app/organisation/designations", icon: "badge-check", permissionModule: "organisation", permissionFeature: "designations", status: "built", sortOrder: 7 },
-      { slug: "users", name: "Users & Roles", path: "/app/organisation/users", icon: "users", permissionModule: "organisation", permissionFeature: "users", status: "built", sortOrder: 8 },
-      { slug: "taxes", name: "Taxes", path: "/app/organisation/taxes", icon: "receipt", permissionModule: "organisation", permissionFeature: "taxes", status: "built", sortOrder: 9 },
-      { slug: "approval-workflows", name: "Approval Workflows", path: "/app/setup/approval-workflows", icon: "git-merge", status: "pending", sortOrder: 10 },
-      { slug: "business-settings", name: "Business Settings", path: "/app/setup/business-settings", icon: "settings-2", status: "pending", sortOrder: 11 },
+      { slug: "branch-mgmt", name: "Branch Management", path: "/app/setup/organisation/branches", icon: "map-pin", status: "built", sortOrder: 3 },
+      { slug: "branches", name: "Branch Management", path: "/app/organisation/branches", icon: "git-branch", permissionModule: "organisation", permissionFeature: "branches", status: "built", sortOrder: 4 },
+      { slug: "divisions", name: "Divisions", path: "/app/organisation/divisions", icon: "network", permissionModule: "organisation", permissionFeature: "divisions", status: "built", sortOrder: 5 },
+      { slug: "designations", name: "Designations", path: "/app/organisation/designations", icon: "badge-check", permissionModule: "organisation", permissionFeature: "designations", status: "built", sortOrder: 6 },
+      { slug: "users", name: "Users & Roles", path: "/app/organisation/users", icon: "users", permissionModule: "organisation", permissionFeature: "users", status: "built", sortOrder: 7 },
+      { slug: "taxes", name: "Taxes", path: "/app/organisation/taxes", icon: "receipt", permissionModule: "organisation", permissionFeature: "taxes", status: "built", sortOrder: 8 },
+      { slug: "approval-workflows", name: "Approval Workflows", path: "/app/setup/approval-workflows", icon: "git-merge", status: "pending", sortOrder: 9 },
+      { slug: "business-settings", name: "Business Settings", path: "/app/setup/business-settings", icon: "settings-2", status: "pending", sortOrder: 10 },
     ],
   },
   {
@@ -261,4 +260,7 @@ export const PLAN_RANK: Record<string, number> = {
   enterprise: 3,
 };
 
-export const ALWAYS_VISIBLE_SLUGS = new Set(["dashboard", "setup", "account", "business-type", "organisation-hub", "company-info", "branch-mgmt", "settings"]);
+export const ALWAYS_VISIBLE_SLUGS = new Set(["dashboard", "setup", "account", "business-type", "company-info", "branch-mgmt", "settings"]);
+
+/** Legacy sidebar slug removed from the catalog (Organization Directory hub only). */
+export const REMOVED_MENU_SLUGS = new Set(["organisation-hub"]);

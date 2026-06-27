@@ -10,9 +10,13 @@ declare module "next-auth" {
       tenantId?: string | null;
       tenantName?: string | null;
       businessType?: string | null;
-      onboardingCompleted?: boolean;
-      enabledModules?: string[];
-    } & DefaultSession["user"];
+    onboardingCompleted?: boolean;
+    enabledModules?: string[];
+    tenantStatus?: string;
+    subscriptionExpired?: boolean;
+    isPaymentRequired?: boolean;
+    expiresAt?: string | null;
+  } & DefaultSession["user"];
   }
 
   interface User {
@@ -22,6 +26,10 @@ declare module "next-auth" {
     businessType?: string | null;
     onboardingCompleted?: boolean;
     enabledModules?: string[];
+    tenantStatus?: string;
+    subscriptionExpired?: boolean;
+    isPaymentRequired?: boolean;
+    expiresAt?: string | null;
     rememberMe?: boolean;
   }
 }

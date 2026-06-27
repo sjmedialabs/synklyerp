@@ -78,6 +78,9 @@ export function SelectionCard({
 
           {items && items.length > 0 && (
             <ul className="mt-4 space-y-1.5 border-t border-slate-100 pt-4 dark:border-slate-800">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                Included features
+              </p>
               {items.slice(0, compact ? 4 : 8).map((item) => {
                 const ItemIcon = resolveOnboardingIcon(item.icon);
                 return (

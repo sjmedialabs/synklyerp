@@ -34,21 +34,14 @@ export const APP_NAVIGATION: NavItem[] = [
     label: "Setup",
     icon: Building2,
     children: [
-      { id: "organisation-hub", label: "Organisation Setup", href: "/app/setup/organisation", status: "built" },
       { id: "business-type", label: "Business Type", href: "/app/setup/business-type", status: "built" },
       { id: "company-info", label: "Company Information", href: "/app/setup/organisation/company-information", status: "built" },
       { id: "branch-mgmt", label: "Branch Management", href: "/app/setup/organisation/branches", status: "built" },
-      {
-        id: "organisation",
-        label: "Organisation Directory",
-        children: [
-          { id: "taxes", label: "Taxes", href: "/app/organisation/taxes", status: "built" },
-          { id: "branches", label: "Branches", href: "/app/organisation/branches", status: "built" },
-          { id: "divisions", label: "Divisions", href: "/app/organisation/divisions", status: "built" },
-          { id: "designations", label: "Designations", href: "/app/organisation/designations", status: "built" },
-          { id: "users", label: "Users", href: "/app/organisation/users", status: "built" },
-        ],
-      },
+      { id: "branches", label: "Branches", href: "/app/organisation/branches", status: "built" },
+      { id: "divisions", label: "Divisions", href: "/app/organisation/divisions", status: "built" },
+      { id: "designations", label: "Designations", href: "/app/organisation/designations", status: "built" },
+      { id: "users", label: "Users", href: "/app/organisation/users", status: "built" },
+      { id: "taxes", label: "Taxes", href: "/app/organisation/taxes", status: "built" },
     ],
   },
   {

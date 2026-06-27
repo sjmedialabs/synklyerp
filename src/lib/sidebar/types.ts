@@ -13,6 +13,9 @@ export type SidebarMenuRecord = {
   sortOrder: number;
   isVisible: boolean;
   isActive: boolean;
+  isSystem?: boolean;
+  isAlwaysVisible?: boolean;
+  level?: number;
   requiredPlan: string | null;
   requiredBusinessTypes: string[];
   hiddenForBusinessTypes: string[];
@@ -65,6 +68,8 @@ export type SidebarRenderContext = {
   enabledSubmodules: string[];
   permissions: string[];
   featureFlags: Set<string>;
+  orgMenuOverrides?: Map<string, "enable" | "disable">;
   hiddenMenuSlugs: Set<string>;
+  alwaysVisibleSlugs: Set<string>;
   isAdmin: boolean;
 };

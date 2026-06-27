@@ -9,6 +9,9 @@
     "lint": "eslint",
     "db:seed": "tsx scripts/seed-supabase.ts",
     "db:seed:sidebar": "tsx scripts/seed-sidebar-menus.ts",
+    "db:seed:category-features": "tsx scripts/seed-category-features.ts",
+    "generate:module-pages": "tsx scripts/generate-module-pages.ts",
+    "migrate:scope-pages": "tsx scripts/migrate-scope-to-placeholder.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

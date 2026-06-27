@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { resolveModuleForAppPath } from "@/lib/modules/path-access";
+import { isPathAllowedWhenSubscriptionExpired } from "@/lib/platform/tenant-subscription-service";
 import { isPublicPath } from "@/lib/navigation/public-routes";
 
 export default auth((req) => {
@@ -32,13 +33,15 @@ export default auth((req) => {
       return NextResponse.redirect(new URL("/superadmin", nextUrl));
     }
     const onboardingDone = req.auth?.user?.onboardingCompleted;
-    return NextResponse.redirect(new URL(onboardingDone ? "/app" : "/onboarding", nextUrl));
+    return NextResponse.redirect(new URL(onboardingDone ? "/app" : "/onboarding/business-type", nextUrl));
   }
 
   const onboardingDone = req.auth?.user?.onboardingCompleted;
   if (isLoggedIn && role !== "SUPERADMIN" && isAppRoute && onboardingDone === false) {
     const waitingUrl = new URL("/onboarding?waiting=1", nextUrl);
-    return NextResponse.redirect(role === "ADMIN" ? new URL("/onboarding", nextUrl) : waitingUrl);
+    return NextResponse.redirect(
+      role === "ADMIN" ? new URL("/onboarding/business-type", nextUrl) : waitingUrl
+    );
   }
 
   if (isLoggedIn && isOnboardingRoute && onboardingDone === false && role !== "ADMIN" && role !== "SUPERADMIN") {
@@ -60,6 +63,13 @@ export default auth((req) => {
   }
 
   if (isLoggedIn && isAppRoute && role !== "SUPERADMIN" && onboardingDone !== false) {
+    const paymentRequired = req.auth?.user?.isPaymentRequired === true;
+    if (paymentRequired && !isPathAllowedWhenSubscriptionExpired(pathname)) {
+      const dest = new URL("/app", nextUrl);
+      dest.searchParams.set("payment_required", "1");
+      return NextResponse.redirect(dest);
+    }
+
     const requiredModule = resolveModuleForAppPath(nextUrl.pathname);
     if (requiredModule) {
       const enabled = req.auth?.user?.enabledModules ?? [];

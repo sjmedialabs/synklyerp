@@ -1,5 +1,6 @@
 import { apiError, apiSuccess } from "@/lib/api/response";
 import { loadTenantDashboardConfig } from "@/lib/dashboard/load-tenant-dashboard";
+import { getAssignedModuleKeysForTenant } from "@/lib/provisioning/category-feature-service";
 import { listUserPermissions } from "@/lib/rbac/permissions";
 import { handleApiError, resolveTenantId, requireTenantSession } from "@/lib/tenant/context";
 import { listActiveModules } from "@/repositories/tenant/modules";
@@ -13,6 +14,7 @@ export async function GET() {
 
     const permissions = await listUserPermissions(ctx.userId, ctx.role, tenantId);
     const enabledModules = await listActiveModules(tenantId);
+    const assignedModuleKeys = await getAssignedModuleKeysForTenant(tenantId);
 
     const supabase = createAdminClient();
     const { data: tenant } = await supabase
@@ -36,6 +38,7 @@ export async function GET() {
         businessType,
         industrySubtype,
         tenantName: (tenant as { name?: string } | null)?.name ?? null,
+        assignedModuleKeys,
       },
       tenantId
     );

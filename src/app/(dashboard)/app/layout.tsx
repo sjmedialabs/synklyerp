@@ -11,6 +11,7 @@ import { MobileSidebar } from "@/components/sidebar/mobile-sidebar";
 import { NotificationCenter } from "@/components/layout/notification-center";
 import { UserMenu } from "@/components/layout/user-menu";
 import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
+import { SubscriptionPaymentAlert } from "@/components/layout/subscription-payment-alert";
 import { SidebarHydration } from "@/components/layout/sidebar-shell";
 import { useSidebarStore } from "@/stores/sidebar-store";
 import { Toaster } from "sonner";
@@ -97,6 +98,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <UserMenu />
             </div>
           </header>
+
+          <SubscriptionPaymentAlert />
 
           <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
             <AnimatePresence mode="wait">

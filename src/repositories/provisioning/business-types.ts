@@ -128,6 +128,19 @@ export async function getBusinessTypeById(id: string) {
   return catalog.find((t) => t.id === id) ?? null;
 }
 
+export async function getBusinessTypeBySlug(slug: string) {
+  const catalog = await listBusinessTypesWithSubcategories();
+  const normalized = slug.toLowerCase();
+  return catalog.find((t) => t.slug === normalized || t.slug === slug) ?? null;
+}
+
+/** Resolve a business type from either UUID id or URL slug */
+export async function resolveBusinessTypeRef(key: string) {
+  const byId = await getBusinessTypeById(key);
+  if (byId) return byId;
+  return getBusinessTypeBySlug(key);
+}
+
 export async function getSubcategoryById(id: string) {
   const catalog = await listBusinessTypesWithSubcategories();
   for (const type of catalog) {

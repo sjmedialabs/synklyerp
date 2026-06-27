@@ -15,6 +15,7 @@ type SidebarMenuItemProps = {
   depth?: number;
   collapsed?: boolean;
   favorites?: Set<string>;
+  globalExpand?: "expand" | "collapse" | null;
   onToggleFavorite?: (slug: string) => void;
   onNavigate?: () => void;
 };
@@ -29,6 +30,7 @@ export const SidebarMenuItem = memo(function SidebarMenuItem({
   depth = 0,
   collapsed,
   favorites,
+  globalExpand,
   onToggleFavorite,
   onNavigate,
 }: SidebarMenuItemProps) {
@@ -46,6 +48,12 @@ export const SidebarMenuItem = memo(function SidebarMenuItem({
   useEffect(() => {
     if (childActive) setOpen(true);
   }, [childActive, pathname]);
+
+  useEffect(() => {
+    if (!hasChildren || !globalExpand) return;
+    if (globalExpand === "expand") setOpen(true);
+    if (globalExpand === "collapse") setOpen(false);
+  }, [globalExpand, hasChildren]);
 
   const handleNavigate = useCallback(() => {
     if (item.path) {
@@ -110,6 +118,7 @@ export const SidebarMenuItem = memo(function SidebarMenuItem({
                     depth={depth + 1}
                     collapsed={collapsed}
                     favorites={favorites}
+                    globalExpand={globalExpand}
                     onToggleFavorite={onToggleFavorite}
                     onNavigate={onNavigate}
                   />

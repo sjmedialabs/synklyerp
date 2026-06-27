@@ -15,6 +15,7 @@ export async function GET() {
       role: ctx.role,
       enabledModules: session?.user?.enabledModules ?? [],
       businessType: session?.user?.businessType ?? null,
+      isPaymentRequired: session?.user?.isPaymentRequired === true,
     });
 
     return apiSuccess(sidebar);
