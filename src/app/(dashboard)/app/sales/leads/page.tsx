@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { LeadFormModal } from "@/components/sales/leads/lead-form-modal";
 import { LeadStageTabs } from "@/components/sales/leads/lead-stage-tabs";
-import { LeadsMobileCards } from "@/components/sales/leads/leads-mobile-cards";
 import { LeadsTable, type SortField } from "@/components/sales/leads/leads-table";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
@@ -26,7 +25,7 @@ const EMPTY_COUNTS = { all: 0, fresh: 0, prospects: 0, converted: 0, dropped: 0 
 
 function TableSkeleton() {
   return (
-    <div className="hidden animate-pulse space-y-2 lg:block">
+    <div className="animate-pulse space-y-2">
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="h-14 rounded-lg bg-slate-200/80" />
       ))}
@@ -129,7 +128,7 @@ export default function LeadsPage() {
       .catch((e) => toast.error((e as Error).message));
   };
 
-  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>, assignedTo: string | null) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const body = {
@@ -141,6 +140,7 @@ export default function LeadsPage() {
       source: (fd.get("source") as string) || undefined,
       status: (fd.get("status") as string) || "FRESH_LEAD",
       notes: (fd.get("notes") as string) || undefined,
+      ...(assignedTo ? { assignedTo } : editing ? { assignedTo: "" } : {}),
     };
     try {
       if (editing) {
@@ -157,10 +157,20 @@ export default function LeadsPage() {
     }
   };
 
+  const assignManager = (leadId: string, userId: string | null) => {
+    update.mutate(
+      { id: leadId, assignedTo: userId ?? "" },
+      {
+        onSuccess: () => toast.success("Account manager updated"),
+        onError: (err) => toast.error((err as Error).message),
+      }
+    );
+  };
+
   const totalPages = meta?.totalPages ?? 1;
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <PageHeader
         title="Lead Management"
         description="Pipeline, assignments, source attribution, and conversion tracking."
@@ -170,12 +180,14 @@ export default function LeadsPage() {
           </span>
         }
         actions={
-          <div className="flex gap-2">
-            <Link href="/app/sales/capture">
-              <Button variant="outline">Lead Capture Hub</Button>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <Link href="/app/sales/capture" className="flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full sm:w-auto">
+                Lead Capture Hub
+              </Button>
             </Link>
             <Button
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className="flex-1 bg-indigo-600 hover:bg-indigo-700 sm:flex-none sm:w-auto"
               onClick={() => {
                 setEditing(null);
                 setOpen(true);
@@ -191,7 +203,7 @@ export default function LeadsPage() {
 
       <div className="sticky top-[52px] z-[5] space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
+          <div className="relative min-w-0 flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               type="search"
@@ -202,7 +214,7 @@ export default function LeadsPage() {
               aria-label="Search leads"
             />
           </div>
-          <Button type="button" variant="outline" onClick={() => setShowFilters((v) => !v)}>
+          <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setShowFilters((v) => !v)}>
             <Filter size={16} className="mr-2" /> Filters
           </Button>
         </div>
@@ -257,59 +269,45 @@ export default function LeadsPage() {
         <EmptyState query={debouncedSearch} />
       ) : (
         !isLoading && (
-          <>
-            <LeadsTable
-              leads={leads}
-              selected={selected}
-              expandedId={expandedId}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              activitiesMap={activitiesMap}
-              onToggleSelect={toggleSelect}
-              onToggleSelectAll={toggleSelectAll}
-              onExpand={(id) => setExpandedId((cur) => (cur === id ? null : id))}
-              onSort={handleSort}
-              onEdit={(lead) => {
-                setEditing(lead);
-                setOpen(true);
-              }}
-              onDelete={(id) => {
-                if (confirm("Delete this lead?")) {
-                  remove.mutate(id, { onSuccess: () => toast.success("Lead deleted") });
-                }
-              }}
-            />
-            <LeadsMobileCards
-              leads={leads}
-              selected={selected}
-              onToggleSelect={toggleSelect}
-              onEdit={(lead) => {
-                setEditing(lead);
-                setOpen(true);
-              }}
-              onDelete={(id) => {
-                if (confirm("Delete this lead?")) {
-                  remove.mutate(id, { onSuccess: () => toast.success("Lead deleted") });
-                }
-              }}
-            />
-          </>
+          <LeadsTable
+            leads={leads}
+            selected={selected}
+            expandedId={expandedId}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            activitiesMap={activitiesMap}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAll}
+            onExpand={(id) => setExpandedId((cur) => (cur === id ? null : id))}
+            onSort={handleSort}
+            onEdit={(lead) => {
+              setEditing(lead);
+              setOpen(true);
+            }}
+            onDelete={(id) => {
+              if (confirm("Delete this lead?")) {
+                remove.mutate(id, { onSuccess: () => toast.success("Lead deleted") });
+              }
+            }}
+            onAssignManager={assignManager}
+          />
         )
       )}
 
       {meta && meta.totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
           <p className="text-slate-500">
             Page {meta.page} of {meta.totalPages} · {meta.total} leads
           </p>
           <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            <Button type="button" variant="outline" size="sm" className="flex-1 sm:flex-none" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
               Previous
             </Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className="flex-1 sm:flex-none"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
             >

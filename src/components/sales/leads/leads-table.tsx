@@ -24,6 +24,7 @@ import {
   statusLabel,
 } from "@/lib/sales/lead-stages";
 import { ScrollableTableShell } from "@/components/sales/leads/scrollable-table-shell";
+import { AccountManagerSelect } from "@/components/sales/leads/account-manager-select";
 
 function CompanyAvatar({ name }: { name: string }) {
   const initial = (name.trim()[0] ?? "?").toUpperCase();
@@ -113,6 +114,7 @@ type Props = {
   onSort: (field: SortField) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (id: string) => void;
+  onAssignManager: (leadId: string, assignedTo: string | null) => void;
 };
 
 function HeaderCell({
@@ -170,11 +172,12 @@ export function LeadsTable({
   onSort,
   onEdit,
   onDelete,
+  onAssignManager,
 }: Props) {
   const allSelected = leads.length > 0 && leads.every((l) => selected.has(l.id));
 
   return (
-    <div className="hidden lg:block">
+    <div>
       <ScrollableTableShell className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full min-w-[1400px] text-sm">
           <thead className="sticky top-0 z-[1] border-b bg-slate-50">
@@ -258,7 +261,14 @@ export function LeadsTable({
                     <td className="px-4 py-3">
                       <LeadProgress status={lead.status} progress={lead.progress} />
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">{lead.assignee?.name ?? "Unassigned"}</td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <AccountManagerSelect
+                        value={lead.assignedTo}
+                        displayLabel={lead.assignee?.name}
+                        onChange={(userId) => onAssignManager(lead.id, userId)}
+                        compact
+                      />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-0.5 opacity-80 transition-opacity group-hover:opacity-100">
                         <Link href={`/app/sales/leads/${lead.id}`} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-indigo-600" title="View" aria-label="View lead">

@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { LEAD_STATUSES } from "@/constants/roles";
+import { AccountManagerSelect } from "@/components/sales/leads/account-manager-select";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -10,13 +12,19 @@ type Props = {
   open: boolean;
   editing: Lead | null;
   onClose: () => void;
-  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  onSubmit: (e: React.FormEvent<HTMLFormElement>, assignedTo: string | null) => void;
 };
 
 export function LeadFormModal({ open, editing, onClose, onSubmit }: Props) {
+  const [assignedTo, setAssignedTo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) setAssignedTo(editing?.assignedTo ?? null);
+  }, [open, editing]);
+
   return (
     <Modal open={open} onClose={onClose} title={editing ? "Edit Lead" : "New Lead"}>
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={(e) => onSubmit(e, assignedTo)} className="space-y-4">
         <div>
           <Label>Contact name *</Label>
           <Input name="name" defaultValue={editing?.name} required />
@@ -59,6 +67,14 @@ export function LeadFormModal({ open, editing, onClose, onSubmit }: Props) {
               ))}
             </Select>
           </div>
+        </div>
+        <div>
+          <Label>Account manager</Label>
+          <AccountManagerSelect
+            value={assignedTo}
+            displayLabel={editing?.assignee?.name}
+            onChange={setAssignedTo}
+          />
         </div>
         <div>
           <Label>Notes</Label>
