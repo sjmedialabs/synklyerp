@@ -3,6 +3,8 @@ import { fetchApi } from "@/lib/api/client";
 import type { CrmApiKeyCreated, CrmForm, CrmLeadSource, CrmWebhook } from "@/lib/mappers/crm";
 import type { Lead } from "@/lib/mappers/modules";
 import type { CrmLeadActivity, CrmLeadAttribution } from "@/lib/mappers/crm";
+import type { PaginationMeta } from "@/types/api";
+import type { DashboardCounts, LeadStageTab } from "@/lib/sales/lead-stages";
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -119,13 +121,54 @@ export function useLeadDetail(leadId: string) {
   });
 }
 
-export function useLeads(search = "", status = "") {
-  const params = new URLSearchParams({ limit: "100" });
-  if (search) params.set("search", search);
-  if (status) params.set("status", status);
+async function getJsonWithMeta<T>(url: string): Promise<{ data: T; meta?: PaginationMeta }> {
+  const res = await fetch(url);
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error?.message ?? "Request failed");
+  return { data: json.data as T, meta: json.meta as PaginationMeta | undefined };
+}
+
+export type LeadsQuery = {
+  search?: string;
+  stage?: LeadStageTab;
+  status?: string;
+  leadType?: string;
+  source?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+};
+
+export function useLeadsQuery(params: LeadsQuery) {
+  const qs = new URLSearchParams();
+  qs.set("limit", String(params.limit ?? 25));
+  qs.set("page", String(params.page ?? 1));
+  if (params.search) qs.set("search", params.search);
+  if (params.stage && params.stage !== "all") qs.set("stage", params.stage);
+  if (params.status) qs.set("status", params.status);
+  if (params.leadType) qs.set("leadType", params.leadType);
+  if (params.source) qs.set("source", params.source);
+  if (params.sortBy) qs.set("sortBy", params.sortBy);
+  if (params.sortOrder) qs.set("sortOrder", params.sortOrder);
+
   return useQuery({
-    queryKey: ["leads", search, status],
-    queryFn: () => getJson<Lead[]>(`/api/sales/leads?${params.toString()}`),
+    queryKey: ["leads", params],
+    queryFn: () => getJsonWithMeta<Lead[]>(`/api/sales/leads?${qs.toString()}`),
+    placeholderData: (prev) => prev,
+  });
+}
+
+/** @deprecated use useLeadsQuery for paginated lists */
+export function useLeads(search = "", status = "") {
+  const { data, ...rest } = useLeadsQuery({ search, status: status || undefined, limit: 100 });
+  return { data: data?.data ?? [], ...rest };
+}
+
+export function useLeadDashboardCounts() {
+  return useQuery({
+    queryKey: ["leads", "dashboard-counts"],
+    queryFn: () => getJson<DashboardCounts>("/api/sales/leads/dashboard-counts"),
   });
 }
 
@@ -141,6 +184,7 @@ export function useLeadMutations() {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["leads"] });
     qc.invalidateQueries({ queryKey: ["leads", "stats"] });
+    qc.invalidateQueries({ queryKey: ["leads", "dashboard-counts"] });
   };
   return {
     create: useMutation({

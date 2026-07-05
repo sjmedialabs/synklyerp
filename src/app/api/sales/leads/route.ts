@@ -3,6 +3,7 @@ import { handleApiError } from "@/lib/tenant/context";
 import { getTenantApiContext } from "@/lib/rbac/api-guard";
 import { P } from "@/lib/rbac/checks";
 import { ingestLead } from "@/lib/crm/lead-ingestion-service";
+import type { LeadStageTab } from "@/lib/sales/lead-stages";
 import * as repo from "@/repositories/sales/leads";
 import { leadSchema } from "@/validators/sales";
 import { z } from "zod";
@@ -13,7 +14,16 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const params = parsePagination(url.searchParams);
     const status = url.searchParams.get("status") ?? undefined;
-    const result = await repo.listLeads(tenantId, { ...params, status });
+    const stage = url.searchParams.get("stage") ?? undefined;
+    const leadType = url.searchParams.get("leadType") ?? undefined;
+    const source = url.searchParams.get("source") ?? undefined;
+    const result = await repo.listLeads(tenantId, {
+      ...params,
+      status,
+      stage: stage as LeadStageTab | undefined,
+      leadType,
+      source,
+    });
     return apiSuccess(result.items, paginationMeta(result.total, result.page, result.limit));
   } catch (error) {
     const err = handleApiError(error);

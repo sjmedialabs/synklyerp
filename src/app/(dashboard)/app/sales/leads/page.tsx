@@ -1,31 +1,133 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Loader2, ExternalLink } from "lucide-react";
+import { Filter, Loader2, Plus, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Input, Label, Select } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
-import { LEAD_STATUSES } from "@/constants/roles";
-import { useLeadMutations, useLeads } from "@/hooks/sales/crm";
+import { Input, Select } from "@/components/ui/input";
+import { LeadFormModal } from "@/components/sales/leads/lead-form-modal";
+import { LeadStageTabs } from "@/components/sales/leads/lead-stage-tabs";
+import { LeadsMobileCards } from "@/components/sales/leads/leads-mobile-cards";
+import { LeadsTable, type SortField } from "@/components/sales/leads/leads-table";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import {
+  useLeadDashboardCounts,
+  useLeadDetail,
+  useLeadMutations,
+  useLeadsQuery,
+} from "@/hooks/sales/crm";
 import type { Lead } from "@/lib/mappers/modules";
+import type { LeadStageTab } from "@/lib/sales/lead-stages";
+import type { CrmLeadActivity } from "@/lib/mappers/crm";
+
+const EMPTY_COUNTS = { all: 0, fresh: 0, prospects: 0, converted: 0, dropped: 0 };
+
+function TableSkeleton() {
+  return (
+    <div className="hidden animate-pulse space-y-2 lg:block">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="h-14 rounded-lg bg-slate-200/80" />
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({ query }: { query: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 py-16 text-center">
+      <Users className="mb-3 h-12 w-12 text-slate-300" />
+      <p className="font-medium text-slate-700">
+        {query ? "No leads match your search" : "No leads in this stage yet"}
+      </p>
+      <p className="mt-1 text-sm text-slate-500">
+        {query ? "Try different keywords or clear filters." : "Add a lead or connect a capture source."}
+      </p>
+    </div>
+  );
+}
 
 export default function LeadsPage() {
-  const [search, setSearch] = useState("");
+  const [stage, setStage] = useState<LeadStageTab>("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [leadType, setLeadType] = useState("");
+  const [source, setSource] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<SortField>("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Lead | null>(null);
-  const { data: leads = [], isLoading, error } = useLeads(search);
-  const { create, update, remove } = useLeadMutations();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [activitiesMap, setActivitiesMap] = useState<Record<string, CrmLeadActivity[]>>({});
 
-  const counts = LEAD_STATUSES.reduce(
-    (acc, s) => {
-      acc[s] = leads.filter((l) => l.status === s).length;
-      return acc;
+  const debouncedSearch = useDebouncedValue(searchInput, 300);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, stage, leadType, source, statusFilter]);
+
+  const { data: counts = EMPTY_COUNTS, isLoading: countsLoading } = useLeadDashboardCounts();
+  const { data: listResult, isLoading, isFetching, error } = useLeadsQuery({
+    search: debouncedSearch || undefined,
+    stage,
+    status: statusFilter || undefined,
+    leadType: leadType || undefined,
+    source: source || undefined,
+    page,
+    limit: 25,
+    sortBy,
+    sortOrder,
+  });
+
+  const leads = listResult?.data ?? [];
+  const meta = listResult?.meta;
+  const { create, update, remove } = useLeadMutations();
+  const { data: expandedDetail } = useLeadDetail(expandedId ?? "");
+
+  useEffect(() => {
+    if (expandedId && expandedDetail?.activities) {
+      setActivitiesMap((prev) => ({ ...prev, [expandedId]: expandedDetail.activities }));
+    }
+  }, [expandedId, expandedDetail]);
+
+  const handleSort = useCallback(
+    (field: SortField) => {
+      if (sortBy === field) setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+      else {
+        setSortBy(field);
+        setSortOrder("asc");
+      }
     },
-    {} as Record<string, number>
+    [sortBy]
   );
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (leads.every((l) => selected.has(l.id))) setSelected(new Set());
+    else setSelected(new Set(leads.map((l) => l.id)));
+  };
+
+  const bulkDelete = () => {
+    if (!selected.size || !confirm(`Delete ${selected.size} lead(s)?`)) return;
+    Promise.all([...selected].map((id) => remove.mutateAsync(id)))
+      .then(() => {
+        toast.success("Selected leads deleted");
+        setSelected(new Set());
+      })
+      .catch((e) => toast.error((e as Error).message));
+  };
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -55,14 +157,16 @@ export default function LeadsPage() {
     }
   };
 
+  const totalPages = meta?.totalPages ?? 1;
+
   return (
-    <div>
+    <div className="space-y-4">
       <PageHeader
         title="Lead Management"
         description="Pipeline, assignments, source attribution, and conversion tracking."
         badge={
-          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-            {leads.length} total
+          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+            {countsLoading ? "…" : `${counts.all} total`}
           </span>
         }
         actions={
@@ -83,164 +187,147 @@ export default function LeadsPage() {
         }
       />
 
-      <div className="mb-4">
-        <Input
-          type="search"
-          placeholder="Search leads..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
+      <LeadStageTabs active={stage} counts={counts} onChange={setStage} />
+
+      <div className="sticky top-[52px] z-[5] space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              type="search"
+              placeholder="Search company, contact, email, phone, service…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-9"
+              aria-label="Search leads"
+            />
+          </div>
+          <Button type="button" variant="outline" onClick={() => setShowFilters((v) => !v)}>
+            <Filter size={16} className="mr-2" /> Filters
+          </Button>
+        </div>
+
+        {showFilters && (
+          <div className="grid gap-3 border-t border-slate-100 pt-3 sm:grid-cols-3">
+            <Select value={leadType} onChange={(e) => setLeadType(e.target.value)} aria-label="Filter by lead type">
+              <option value="">All lead types</option>
+              <option value="INBOUND">Inbound</option>
+              <option value="OUTBOUND">Outbound</option>
+              <option value="WEBSITE">Website</option>
+              <option value="REFERRAL">Referral</option>
+            </Select>
+            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">
+              <option value="">All statuses</option>
+              <option value="FRESH_LEAD">Fresh</option>
+              <option value="PROSPECT">Prospect</option>
+              <option value="CONVERTED">Converted</option>
+              <option value="DROPPED">Dropped</option>
+            </Select>
+            <Input
+              placeholder="Source filter"
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              aria-label="Filter by source"
+            />
+          </div>
+        )}
+
+        {selected.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+            <span className="text-sm text-slate-600">{selected.size} selected</span>
+            <Button type="button" variant="outline" size="sm" onClick={bulkDelete}>
+              Delete
+            </Button>
+            <Button type="button" variant="outline" size="sm" disabled title="Coming soon">
+              Export
+            </Button>
+          </div>
+        )}
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        {LEAD_STATUSES.map((status) => (
-          <span
-            key={status}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium dark:border-slate-800 dark:bg-slate-900"
-          >
-            {status.replace(/_/g, " ")}: {counts[status] ?? 0}
-          </span>
-        ))}
-      </div>
-
-      {isLoading && (
-        <div className="flex items-center gap-2 text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading leads...
+      {isLoading && <TableSkeleton />}
+      {isFetching && !isLoading && (
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <Loader2 className="h-3 w-3 animate-spin" /> Updating…
         </div>
       )}
       {error && <p className="text-sm text-rose-600">{(error as Error).message}</p>}
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <table className="w-full text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-800">
-            <tr>
-              {["Date", "Company", "Contact", "Source", "Type", "Status", "Assignee", ""].map((h) => (
-                <th key={h || "actions"} className="px-4 py-3 text-left font-medium text-slate-600">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {leads.length === 0 && !isLoading ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
-                  No leads yet. Add your first lead or connect a capture source.
-                </td>
-              </tr>
-            ) : (
-              leads.map((lead) => (
-                <tr key={lead.id} className="border-t border-slate-100 dark:border-slate-800">
-                  <td className="px-4 py-3">{new Date(lead.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3">{lead.company ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    <Link href={`/app/sales/leads/${lead.id}`} className="font-medium text-indigo-600 hover:underline">
-                      {lead.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">{lead.originalSource ?? lead.source ?? "—"}</td>
-                  <td className="px-4 py-3">{lead.leadType}</td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700">
-                      {lead.status.replace(/_/g, " ")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{lead.assignee?.name ?? "Unassigned"}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <Link href={`/app/sales/leads/${lead.id}`} className="p-1 text-slate-500 hover:text-indigo-600">
-                        <ExternalLink size={16} />
-                      </Link>
-                      <button
-                        type="button"
-                        className="p-1 text-slate-500 hover:text-indigo-600"
-                        onClick={() => {
-                          setEditing(lead);
-                          setOpen(true);
-                        }}
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        className="p-1 text-slate-500 hover:text-rose-600"
-                        onClick={() => {
-                          if (confirm("Delete this lead?")) {
-                            remove.mutate(lead.id, { onSuccess: () => toast.success("Lead deleted") });
-                          }
-                        }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {!isLoading && leads.length === 0 ? (
+        <EmptyState query={debouncedSearch} />
+      ) : (
+        !isLoading && (
+          <>
+            <LeadsTable
+              leads={leads}
+              selected={selected}
+              expandedId={expandedId}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              activitiesMap={activitiesMap}
+              onToggleSelect={toggleSelect}
+              onToggleSelectAll={toggleSelectAll}
+              onExpand={(id) => setExpandedId((cur) => (cur === id ? null : id))}
+              onSort={handleSort}
+              onEdit={(lead) => {
+                setEditing(lead);
+                setOpen(true);
+              }}
+              onDelete={(id) => {
+                if (confirm("Delete this lead?")) {
+                  remove.mutate(id, { onSuccess: () => toast.success("Lead deleted") });
+                }
+              }}
+            />
+            <LeadsMobileCards
+              leads={leads}
+              selected={selected}
+              onToggleSelect={toggleSelect}
+              onEdit={(lead) => {
+                setEditing(lead);
+                setOpen(true);
+              }}
+              onDelete={(id) => {
+                if (confirm("Delete this lead?")) {
+                  remove.mutate(id, { onSuccess: () => toast.success("Lead deleted") });
+                }
+              }}
+            />
+          </>
+        )
+      )}
 
-      <Modal open={open} onClose={() => setOpen(false)} title={editing ? "Edit Lead" : "New Lead"}>
-        <form onSubmit={submit} className="space-y-4">
-          <div>
-            <Label>Contact name *</Label>
-            <Input name="name" defaultValue={editing?.name} required />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Company</Label>
-              <Input name="company" defaultValue={editing?.company ?? ""} />
-            </div>
-            <div>
-              <Label>Lead type *</Label>
-              <Input name="leadType" defaultValue={editing?.leadType ?? "INBOUND"} required />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Email</Label>
-              <Input name="email" type="email" defaultValue={editing?.email ?? ""} />
-            </div>
-            <div>
-              <Label>Phone</Label>
-              <Input name="phone" defaultValue={editing?.phone ?? ""} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Source</Label>
-              <Input name="source" defaultValue={editing?.source ?? ""} disabled={!!editing?.originalSource} />
-              {editing?.originalSource && (
-                <p className="mt-1 text-xs text-slate-500">Original source is immutable: {editing.originalSource}</p>
-              )}
-            </div>
-            <div>
-              <Label>Status</Label>
-              <Select name="status" defaultValue={editing?.status ?? "FRESH_LEAD"}>
-                {LEAD_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s.replace(/_/g, " ")}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </div>
-          <div>
-            <Label>Notes</Label>
-            <Input name="notes" defaultValue={editing?.notes ?? ""} />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+      {meta && meta.totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm">
+          <p className="text-slate-500">
+            Page {meta.page} of {meta.totalPages} · {meta.total} leads
+          </p>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              Previous
             </Button>
-            <Button type="submit" className="bg-indigo-600 text-white">
-              Save
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
             </Button>
           </div>
-        </form>
-      </Modal>
+        </div>
+      )}
+
+      <LeadFormModal
+        open={open}
+        editing={editing}
+        onClose={() => {
+          setOpen(false);
+          setEditing(null);
+        }}
+        onSubmit={submit}
+      />
     </div>
   );
 }

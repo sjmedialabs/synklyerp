@@ -1,19 +1,58 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapLead } from "@/lib/mappers/modules";
 import type { PaginatedQuery } from "@/types/api";
+import { PROSPECT_STATUSES, type LeadStageTab } from "@/lib/sales/lead-stages";
 
 const leadSelect = `*, services:service_id ( id, name ), users:assigned_to ( id, name )`;
 
-export async function listLeads(tenantId: string, params: PaginatedQuery & { leadType?: string }) {
+const SORT_COLUMNS: Record<string, string> = {
+  createdAt: "created_at",
+  company: "company",
+  leadType: "lead_type",
+  status: "status",
+  assignedTo: "assigned_to",
+};
+
+export type ListLeadsParams = PaginatedQuery & {
+  leadType?: string;
+  stage?: LeadStageTab;
+  source?: string;
+};
+
+export async function listLeads(tenantId: string, params: ListLeadsParams) {
   const supabase = createAdminClient();
   const page = params.page ?? 1;
-  const limit = params.limit ?? 50;
+  const limit = params.limit ?? 25;
   const from = (page - 1) * limit;
 
-  let query = supabase.from("leads").select(leadSelect, { count: "exact" }).eq("tenant_id", tenantId).is("deleted_at", null).order("created_at", { ascending: false });
-  if (params.status) query = query.eq("status", params.status);
+  const sortCol = SORT_COLUMNS[params.sortBy ?? "createdAt"] ?? "created_at";
+  const ascending = params.sortOrder === "asc";
+
+  let query = supabase
+    .from("leads")
+    .select(leadSelect, { count: "exact" })
+    .eq("tenant_id", tenantId)
+    .is("deleted_at", null)
+    .order(sortCol, { ascending });
+
+  if (params.stage && params.stage !== "all") {
+    if (params.stage === "fresh") query = query.eq("status", "FRESH_LEAD");
+    else if (params.stage === "prospects") query = query.in("status", [...PROSPECT_STATUSES]);
+    else if (params.stage === "converted") query = query.eq("status", "CONVERTED");
+    else if (params.stage === "dropped") query = query.eq("status", "DROPPED");
+  } else if (params.status) {
+    query = query.eq("status", params.status);
+  }
+
   if (params.leadType) query = query.eq("lead_type", params.leadType);
-  if (params.search) query = query.or(`name.ilike.%${params.search}%,company.ilike.%${params.search}%,email.ilike.%${params.search}%`);
+  if (params.source) query = query.ilike("source", `%${params.source}%`);
+
+  if (params.search) {
+    const q = params.search.replace(/[%_]/g, "");
+    query = query.or(
+      `name.ilike.%${q}%,company.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%,source.ilike.%${q}%,lead_type.ilike.%${q}%`
+    );
+  }
 
   const { data, error, count } = await query.range(from, from + limit - 1);
   if (error) throw error;
@@ -37,6 +76,23 @@ export async function getLeadStats(tenantId: string) {
     byStatus[s] = (byStatus[s] ?? 0) + 1;
   }
   return { total: list.length, byStatus };
+}
+
+export async function getLeadDashboardCounts(tenantId: string) {
+  const { byStatus } = await getLeadStats(tenantId);
+  let fresh = 0;
+  let prospects = 0;
+  let converted = 0;
+  let dropped = 0;
+
+  for (const [status, count] of Object.entries(byStatus)) {
+    if (status === "FRESH_LEAD") fresh += count;
+    else if ((PROSPECT_STATUSES as readonly string[]).includes(status)) prospects += count;
+    else if (status === "CONVERTED") converted += count;
+    else if (status === "DROPPED") dropped += count;
+  }
+
+  return { all: fresh + prospects + converted + dropped, fresh, prospects, converted, dropped };
 }
 
 export async function createLead(tenantId: string, input: Record<string, unknown>) {
