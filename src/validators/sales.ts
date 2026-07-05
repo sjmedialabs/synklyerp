@@ -10,6 +10,7 @@ export const leadSchema = z.object({
   source: z.string().optional(),
   assignedTo: z.string().optional(),
   status: z.string(),
+  progress: z.number().min(0).max(100).optional(),
   notes: z.string().optional(),
   /** Enterprise capture — optional, backward compatible */
   crmLeadSourceId: z.string().uuid().optional(),

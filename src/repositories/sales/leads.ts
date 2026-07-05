@@ -129,6 +129,7 @@ export async function updateLead(tenantId: string, id: string, input: Record<str
   if (input.assignedTo !== undefined) payload.assigned_to = input.assignedTo || null;
   // original_source is immutable — never update after creation
   if (input.status !== undefined) payload.status = input.status;
+  if (input.progress !== undefined) payload.progress = input.progress;
   if (input.notes !== undefined) payload.notes = input.notes || null;
   const { data, error } = await supabase.from("leads").update(payload).eq("tenant_id", tenantId).eq("id", id).is("deleted_at", null).select(leadSelect).single();
   if (error) throw error;

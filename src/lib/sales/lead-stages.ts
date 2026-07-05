@@ -20,6 +20,30 @@ export const PIPELINE_STEPS = [
   { key: "CONVERTED", label: "Won" },
 ] as const;
 
+/** Progress stages shown on the lead detail view (matches CRM mockup). */
+export const DETAIL_PROGRESS_STEPS = [
+  { key: "FRESH_LEAD", label: "Follow Up", shortLabel: "Follow Up" },
+  { key: "PROSPECT", label: "In Discussion", shortLabel: "In Discussion" },
+  { key: "PROPOSAL_SENT", label: "Quote Submitted", shortLabel: "Quote Submitted" },
+  { key: "NEGOTIATION", label: "Negotiation", shortLabel: "Negotiation" },
+] as const;
+
+export function detailProgressLabel(status: string) {
+  const step = DETAIL_PROGRESS_STEPS.find((s) => s.key === status);
+  if (step) return step.label;
+  if (status === "QUALIFIED") return "In Discussion";
+  if (status === "CONVERTED") return "Won";
+  if (status === "DROPPED") return "Dropped";
+  return statusLabel(status);
+}
+
+export function leadAgeDays(createdAt: string) {
+  const created = new Date(createdAt);
+  const now = new Date();
+  const diff = now.getTime() - created.getTime();
+  return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+}
+
 export type DashboardCounts = {
   all: number;
   fresh: number;
