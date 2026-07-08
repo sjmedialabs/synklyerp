@@ -27,7 +27,7 @@ server {
     server_name ai.synklyapp.com;
 
     location /api/v1/ {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:18000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;

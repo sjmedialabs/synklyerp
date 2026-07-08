@@ -18,6 +18,8 @@ const EMPTY_FORM: FormState = {
   serverUrl: "",
   apiKey: "",
   publicAppUrl: "",
+  agentTriggerUuid: "",
+  telephonyConfigurationId: null,
   isActive: false,
 };
 
@@ -38,6 +40,9 @@ export default function DograhConfigPage() {
       serverUrl: c?.serverUrl ?? data.envFallback.serverUrl ?? "",
       apiKey: c?.apiKeySet || data.envFallback.apiKeySet ? TOKEN_PLACEHOLDER : "",
       publicAppUrl: c?.publicAppUrl ?? data.envFallback.publicAppUrl ?? "",
+      agentTriggerUuid: c?.agentTriggerUuid ?? data.envFallback.agentTriggerUuid ?? "",
+      telephonyConfigurationId:
+        c?.telephonyConfigurationId ?? data.envFallback.telephonyConfigurationId ?? null,
       isActive: c?.isActive ?? false,
     });
     setKeySet(!!(c?.apiKeySet || data.envFallback.apiKeySet));
@@ -53,6 +58,7 @@ export default function DograhConfigPage() {
       const result = await test.mutateAsync({
         serverUrl: form.serverUrl.trim() || undefined,
         apiKey: form.apiKey !== TOKEN_PLACEHOLDER ? form.apiKey : undefined,
+        agentTriggerUuid: form.agentTriggerUuid.trim() || undefined,
       });
       toast.success(result.message);
     } catch (err) {
@@ -65,6 +71,8 @@ export default function DograhConfigPage() {
       const payload: DograhConfigInput & { apiKey?: string } = {
         serverUrl: form.serverUrl.trim(),
         publicAppUrl: form.publicAppUrl.trim(),
+        agentTriggerUuid: form.agentTriggerUuid.trim(),
+        telephonyConfigurationId: form.telephonyConfigurationId,
         isActive: form.isActive,
       };
       if (form.apiKey && form.apiKey !== TOKEN_PLACEHOLDER) {
@@ -101,6 +109,7 @@ export default function DograhConfigPage() {
   const customerUrl = data?.customerUrl ?? "";
   const webhookUrl = data?.webhookUrl ?? "";
   const updateStatusUrl = data?.updateStatusUrl ?? "";
+  const webhookPayloadTemplate = data?.webhookPayloadTemplate ?? "";
 
   return (
     <div>
@@ -164,7 +173,7 @@ export default function DograhConfigPage() {
                 type="password"
                 value={form.apiKey}
                 onChange={(e) => set("apiKey", e.target.value)}
-                placeholder={keySet ? "Key saved — paste to replace" : "Bearer token for Dograh API"}
+                placeholder={keySet ? "Key saved — paste to replace" : "Dograh API key (dgr_...)"}
                 disabled={!isAdmin}
                 autoComplete="off"
                 className="mt-1.5"
@@ -190,6 +199,40 @@ export default function DograhConfigPage() {
                 Dograh calls this URL for customer context and webhooks. Must be reachable from your VPS.
               </p>
             </div>
+
+            <div className="lg:col-span-2">
+              <Label htmlFor="agentTriggerUuid">API Trigger UUID</Label>
+              <Input
+                id="agentTriggerUuid"
+                value={form.agentTriggerUuid}
+                onChange={(e) => set("agentTriggerUuid", e.target.value)}
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                disabled={!isAdmin}
+                className="mt-1.5 font-mono text-xs"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Copy from Dograh workflow → API Trigger node → Production URL. Required for outbound calls.
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="telephonyConfigurationId">Telephony config ID (optional)</Label>
+              <Input
+                id="telephonyConfigurationId"
+                type="number"
+                value={form.telephonyConfigurationId ?? ""}
+                onChange={(e) =>
+                  set(
+                    "telephonyConfigurationId",
+                    e.target.value.trim() ? Number(e.target.value) : null
+                  )
+                }
+                placeholder="e.g. 1"
+                disabled={!isAdmin}
+                className="mt-1.5"
+              />
+              <p className="mt-1 text-xs text-slate-500">Use when you have multiple Dograh telephony providers.</p>
+            </div>
           </div>
 
           <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-slate-700">
@@ -207,14 +250,18 @@ export default function DograhConfigPage() {
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-4 text-base font-semibold text-slate-900">Dograh integration endpoints</h2>
           <p className="mb-4 text-sm text-slate-600">
-            Configure these URLs in your Dograh server. Dograh never connects to the database directly — only these
-            API routes.
+            Configure these in your Dograh workflow. Use the customer URL for Pre-Call Data Fetch (POST) on the Start
+            Call node, and the webhook URL on the Webhook node.
           </p>
 
           <div className="space-y-4">
             {[
-              { label: "Customer context (GET)", value: customerUrl, hint: "?phone=…&tenantId=…&leadId=…" },
-              { label: "Post-call webhook (POST)", value: webhookUrl, hint: "Receives transcript, summary, status" },
+              {
+                label: "Customer context (POST/GET)",
+                value: customerUrl,
+                hint: "Pre-Call Data Fetch endpoint in Dograh Start Call node",
+              },
+              { label: "Post-call webhook (POST)", value: webhookUrl, hint: "Webhook node destination URL" },
               { label: "Status update (POST)", value: updateStatusUrl, hint: "Optional mid-call status updates" },
             ].map((row) => (
               <div key={row.label} className="grid grid-cols-1 gap-2 lg:grid-cols-4">
@@ -237,6 +284,36 @@ export default function DograhConfigPage() {
                 </div>
               </div>
             ))}
+
+            <div className="grid grid-cols-1 gap-2 lg:grid-cols-4">
+              <div className="lg:col-span-3">
+                <Label>Recommended webhook payload</Label>
+                <textarea
+                  readOnly
+                  value={webhookPayloadTemplate}
+                  className="mt-1.5 min-h-[180px] w-full rounded-md border border-slate-200 bg-slate-50 p-3 font-mono text-xs"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  Paste into Dograh Webhook node payload template. Authenticate with your SynklyERP API key.
+                </p>
+              </div>
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={!webhookPayloadTemplate}
+                  onClick={() => copyText(webhookPayloadTemplate, "Webhook payload")}
+                >
+                  {copied === "Webhook payload" ? (
+                    <Check size={16} className="mr-2" />
+                  ) : (
+                    <Copy size={16} className="mr-2" />
+                  )}
+                  Copy
+                </Button>
+              </div>
+            </div>
           </div>
         </section>
 

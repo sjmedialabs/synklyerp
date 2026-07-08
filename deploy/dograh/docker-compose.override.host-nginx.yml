@@ -1,22 +1,19 @@
 # Bind Dograh to localhost only — host nginx terminates SSL.
-# Placed as /opt/dograh/docker-compose.override.yml
+# !reset clears base compose host ports (5432/6379/8000 conflict with Supabase/itu-redis).
+# API uses 18000 because Supabase Kong already binds 0.0.0.0:8000.
 
 services:
   postgres:
-    ports: []
+    ports: !reset []
 
   redis:
-    ports: []
+    ports: !reset []
 
   ui:
-    ports:
-      - "127.0.0.1:3010:3010"
+    ports: !reset ["127.0.0.1:3010:3010"]
 
   api:
-    ports:
-      - "127.0.0.1:8000:8000"
+    ports: !reset ["127.0.0.1:18000:8000"]
 
   minio:
-    ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
+    ports: !reset ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]

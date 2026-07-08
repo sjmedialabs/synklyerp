@@ -207,14 +207,29 @@ export type DograhConfigResponse = {
     serverUrl: string | null;
     apiKeySet: boolean;
     publicAppUrl: string | null;
+    agentTriggerUuid: string | null;
+    telephonyConfigurationId: number | null;
     isActive: boolean;
     updatedAt: string | null;
   } | null;
-  resolved: { serverUrl: string; publicAppUrl: string; isActive: boolean } | null;
-  envFallback: { serverUrl: string | null; apiKeySet: boolean; publicAppUrl: string };
+  resolved: {
+    serverUrl: string;
+    publicAppUrl: string;
+    agentTriggerUuid: string;
+    telephonyConfigurationId: number | null;
+    isActive: boolean;
+  } | null;
+  envFallback: {
+    serverUrl: string | null;
+    apiKeySet: boolean;
+    publicAppUrl: string;
+    agentTriggerUuid: string | null;
+    telephonyConfigurationId: number | null;
+  };
   customerUrl: string;
   webhookUrl: string;
   updateStatusUrl: string;
+  webhookPayloadTemplate: string;
   migrationRequired?: boolean;
 };
 
@@ -240,7 +255,7 @@ export function useDograhConfigMutations() {
       onSuccess: () => qc.invalidateQueries({ queryKey: ["dograh-config"] }),
     }),
     test: useMutation({
-      mutationFn: (body: { serverUrl?: string; apiKey?: string }) =>
+      mutationFn: (body: { serverUrl?: string; apiKey?: string; agentTriggerUuid?: string }) =>
         fetchApi<{ message: string }>("/api/organisation/dograh-config", {
           method: "POST",
           body: JSON.stringify({ action: "test", ...body }),

@@ -2,9 +2,10 @@ import { apiError, apiSuccess } from "@/lib/api/response";
 import { handleApiError } from "@/lib/tenant/context";
 import { getTenantApiContext } from "@/lib/rbac/api-guard";
 import { P } from "@/lib/rbac/checks";
-import { isDograhConfigured, createDograhCall } from "@/lib/sales/dograh";
+import { buildDograhCustomerContext, createDograhCall, isDograhConfigured } from "@/lib/sales/dograh";
 import { parseWhatsAppPhone } from "@/lib/sales/whatsapp-phone";
 import { logLeadEngagement } from "@/repositories/sales/crm/engagement";
+import { getLatestCallLogForLead } from "@/repositories/sales/crm/calls";
 import { resolveDograhCredentials } from "@/repositories/sales/crm/dograh-config";
 import * as leadsRepo from "@/repositories/sales/leads";
 import { dograhCreateCallSchema } from "@/validators/dograh";
@@ -40,18 +41,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const contextParams = new URLSearchParams({
-      phone: parsed.normalized,
-      tenantId: ctx.tenantId,
-      leadId: lead.id,
-    });
+    const lastCall = await getLatestCallLogForLead(ctx.tenantId, lead.id);
+    const initialContext = buildDograhCustomerContext(lead, lastCall?.summary);
 
     const result = await createDograhCall({
       tenantId: ctx.tenantId,
-      phone: parsed.normalized,
-      metadata: { tenantId: ctx.tenantId, leadId: lead.id },
-      contextUrl: `${creds.publicAppUrl}/api/dograh/customer?${contextParams.toString()}`,
-      webhookUrl: `${creds.publicAppUrl}/api/dograh/webhook`,
+      phoneE164: parsed.normalized,
+      leadId: lead.id,
+      initialContext,
+      telephonyConfigurationId: creds.telephonyConfigurationId,
     });
 
     await logLeadEngagement({
@@ -60,11 +58,15 @@ export async function POST(req: Request) {
       userId: ctx.userId,
       channel: "call",
       action: "ai_call_started",
-      metadata: { externalCallId: result.callId },
+      metadata: {
+        externalCallId: result.callId,
+        workflowRunId: result.workflowRunId,
+      },
     });
 
     return apiSuccess({
       callId: result.callId,
+      workflowRunId: result.workflowRunId,
       phone: parsed.display,
       leadId: lead.id,
     });

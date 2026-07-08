@@ -1,12 +1,15 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMissingSchemaError } from "@/lib/db/schema-errors";
 import type { DograhConfigInput } from "@/validators/dograh-config";
+import { parseDograhAgentTriggerUuid } from "@/validators/dograh-config";
 
 export type DograhTenantConfigRecord = {
   tenantId: string;
   serverUrl: string | null;
   apiKeySet: boolean;
   publicAppUrl: string | null;
+  agentTriggerUuid: string | null;
+  telephonyConfigurationId: number | null;
   isActive: boolean;
   updatedAt: string | null;
 };
@@ -15,8 +18,24 @@ export type ResolvedDograhCredentials = {
   serverUrl: string;
   apiKey: string;
   publicAppUrl: string;
+  agentTriggerUuid: string;
+  telephonyConfigurationId: number | null;
   isActive: boolean;
 };
+
+function mapConfigRow(data: Record<string, unknown>): DograhTenantConfigRecord {
+  return {
+    tenantId: data.tenant_id as string,
+    serverUrl: (data.server_url as string) ?? null,
+    apiKeySet: !!(data.api_key as string | null),
+    publicAppUrl: (data.public_app_url as string) ?? null,
+    agentTriggerUuid: (data.agent_trigger_uuid as string) ?? null,
+    telephonyConfigurationId:
+      data.telephony_configuration_id == null ? null : Number(data.telephony_configuration_id),
+    isActive: data.is_active as boolean,
+    updatedAt: (data.updated_at as string) ?? null,
+  };
+}
 
 export async function isDograhSchemaMigrated(): Promise<boolean> {
   const supabase = createAdminClient();
@@ -38,15 +57,7 @@ export async function getDograhTenantConfig(tenantId: string): Promise<DograhTen
     throw error;
   }
   if (!data) return null;
-
-  return {
-    tenantId: data.tenant_id as string,
-    serverUrl: (data.server_url as string) ?? null,
-    apiKeySet: !!(data.api_key as string | null),
-    publicAppUrl: (data.public_app_url as string) ?? null,
-    isActive: data.is_active as boolean,
-    updatedAt: (data.updated_at as string) ?? null,
-  };
+  return mapConfigRow(data as Record<string, unknown>);
 }
 
 export async function upsertDograhTenantConfig(tenantId: string, input: DograhConfigInput & { apiKey?: string }) {
@@ -57,10 +68,14 @@ export async function upsertDograhTenantConfig(tenantId: string, input: DograhCo
     .eq("tenant_id", tenantId)
     .maybeSingle();
 
+  const agentTriggerUuid = parseDograhAgentTriggerUuid(input.agentTriggerUuid) ?? null;
+
   const payload: Record<string, unknown> = {
     tenant_id: tenantId,
     server_url: input.serverUrl.trim() || null,
     public_app_url: input.publicAppUrl.trim() || null,
+    agent_trigger_uuid: agentTriggerUuid,
+    telephony_configuration_id: input.telephonyConfigurationId ?? null,
     is_active: input.isActive,
     updated_at: new Date().toISOString(),
   };
@@ -83,14 +98,7 @@ export async function upsertDograhTenantConfig(tenantId: string, input: DograhCo
     throw error;
   }
 
-  return {
-    tenantId: data.tenant_id as string,
-    serverUrl: (data.server_url as string) ?? null,
-    apiKeySet: !!(data.api_key as string | null),
-    publicAppUrl: (data.public_app_url as string) ?? null,
-    isActive: data.is_active as boolean,
-    updatedAt: (data.updated_at as string) ?? null,
-  };
+  return mapConfigRow(data as Record<string, unknown>);
 }
 
 export async function getDograhApiKeyForTenant(tenantId: string): Promise<string | null> {
@@ -126,6 +134,8 @@ export async function resolveDograhCredentials(tenantId: string): Promise<Resolv
   const config = await getDograhTenantConfig(tenantId);
   const envUrl = process.env.DOGRAH_URL?.trim();
   const envKey = process.env.DOGRAH_API_KEY?.trim();
+  const envAgentTriggerUuid = parseDograhAgentTriggerUuid(process.env.DOGRAH_AGENT_TRIGGER_UUID);
+  const envTelephonyId = process.env.DOGRAH_TELEPHONY_CONFIGURATION_ID?.trim();
   const envPublic =
     process.env.DOGRAH_APP_PUBLIC_URL?.trim() ||
     process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
@@ -136,8 +146,20 @@ export async function resolveDograhCredentials(tenantId: string): Promise<Resolv
   const storedKey = config?.apiKeySet ? await getDograhApiKeyForTenant(tenantId) : null;
   const apiKey = storedKey?.trim() || envKey || "";
   const publicAppUrl = config?.publicAppUrl?.trim() || envPublic;
+  const agentTriggerUuid =
+    parseDograhAgentTriggerUuid(config?.agentTriggerUuid) || envAgentTriggerUuid || "";
+  const telephonyConfigurationId =
+    config?.telephonyConfigurationId ??
+    (envTelephonyId && /^\d+$/.test(envTelephonyId) ? Number(envTelephonyId) : null);
   const isActive = config?.isActive ?? false;
 
-  if (!isActive || !serverUrl || !apiKey) return null;
-  return { serverUrl: serverUrl.replace(/\/$/, ""), apiKey, publicAppUrl: publicAppUrl.replace(/\/$/, ""), isActive };
+  if (!isActive || !serverUrl || !apiKey || !agentTriggerUuid) return null;
+  return {
+    serverUrl: serverUrl.replace(/\/$/, ""),
+    apiKey,
+    publicAppUrl: publicAppUrl.replace(/\/$/, ""),
+    agentTriggerUuid,
+    telephonyConfigurationId,
+    isActive,
+  };
 }

@@ -1,4 +1,5 @@
 import { apiError, apiSuccess } from "@/lib/api/response";
+import { normalizeDograhWebhookPayload } from "@/lib/sales/dograh";
 import { verifyDograhRequest } from "@/lib/sales/dograh-auth";
 import { applyDograhWebhookResult, findLeadByPhone } from "@/repositories/sales/crm/calls";
 import { dograhWebhookSchema } from "@/validators/dograh";
@@ -6,7 +7,13 @@ import { z } from "zod";
 
 export async function POST(req: Request) {
   try {
-    const body = dograhWebhookSchema.parse(await req.json());
+    const rawBody = (await req.json()) as Record<string, unknown>;
+    const normalized = normalizeDograhWebhookPayload(rawBody);
+    if (!normalized) {
+      return apiError("Webhook payload must include a phone number", 400, "VALIDATION_ERROR");
+    }
+
+    const body = dograhWebhookSchema.parse(normalized);
 
     if (!(await verifyDograhRequest(req, body.tenantId))) {
       return apiError("Unauthorized", 401, "UNAUTHORIZED");
