@@ -9,6 +9,8 @@ export const NAV_ITEM_ICONS: Record<string, string> = {
   "business-type": "layers",
   "company-info": "building",
   "branch-mgmt": "map-pin",
+  "whatsapp-api": "message-circle",
+  "dograh-ai": "bot",
   organisation: "network",
   taxes: "receipt",
   branches: "git-branch",
@@ -52,6 +54,7 @@ export const NAV_ITEM_ICONS: Record<string, string> = {
 
   sales: "briefcase",
   leads: "user-plus",
+  "contact-history": "history",
   opportunities: "filter",
   quotations: "file-check",
   orders: "shopping-bag",

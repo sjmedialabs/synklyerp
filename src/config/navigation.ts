@@ -37,6 +37,8 @@ export const APP_NAVIGATION: NavItem[] = [
       { id: "business-type", label: "Business Type", href: "/app/setup/business-type", status: "built" },
       { id: "company-info", label: "Company Information", href: "/app/setup/organisation/company-information", status: "built" },
       { id: "branch-mgmt", label: "Branch Management", href: "/app/setup/organisation/branches", status: "built" },
+      { id: "whatsapp-api", label: "WhatsApp Business API", href: "/app/setup/organisation/whatsapp", status: "built" },
+      { id: "dograh-ai", label: "Dograh AI Voice", href: "/app/setup/organisation/dograh", status: "built" },
       { id: "branches", label: "Branches", href: "/app/organisation/branches", status: "built" },
       { id: "divisions", label: "Divisions", href: "/app/organisation/divisions", status: "built" },
       { id: "designations", label: "Designations", href: "/app/organisation/designations", status: "built" },
@@ -84,6 +86,7 @@ export const APP_NAVIGATION: NavItem[] = [
     icon: Briefcase,
     children: [
       { id: "leads", label: "Lead Management", href: "/app/sales/leads", status: "built" },
+      { id: "contact-history", label: "Contact History", href: "/app/sales/leads/communication-history", status: "built" },
       { id: "orders", label: "Orders & Invoices", href: "/app/sales/orders", status: "pending" },
       { id: "customers", label: "Customer Management", href: "/app/sales/customers", status: "pending" },
       { id: "targets", label: "Targets & Quotas", href: "/app/sales/targets", status: "pending" },

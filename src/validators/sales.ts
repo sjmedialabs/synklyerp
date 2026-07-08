@@ -12,6 +12,9 @@ export const leadSchema = z.object({
   status: z.string(),
   progress: z.number().min(0).max(100).optional(),
   notes: z.string().optional(),
+  city: z.string().optional(),
+  budget: z.string().optional(),
+  projectInterest: z.string().optional(),
   /** Enterprise capture — optional, backward compatible */
   crmLeadSourceId: z.string().uuid().optional(),
   originalSource: z.string().optional(),

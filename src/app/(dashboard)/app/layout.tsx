@@ -22,8 +22,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { data: session } = useSession();
 
   const hydrated = useSidebarStore((s) => s.hydrated);
-  const desktopOpen = useSidebarStore((s) => s.desktopOpen);
-  const toggleDesktop = useSidebarStore((s) => s.toggleDesktop);
+  const desktopOpen = true;
 
   const tenantName = session?.user?.tenantName ?? "Workspace";
   const businessType = session?.user?.businessType ?? "—";
@@ -32,7 +31,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  const sidebarWidth = !hydrated ? "w-[72px]" : desktopOpen ? "w-64" : "w-[72px]";
+  const sidebarWidth = "w-64";
 
   return (
     <SidebarHydration>
@@ -42,33 +41,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <aside
           className={`sticky top-0 z-20 hidden h-screen shrink-0 flex-col border-r border-slate-200 bg-white transition-[width] duration-300 ease-in-out dark:border-slate-800 dark:bg-slate-900 md:flex ${sidebarWidth}`}
         >
-          <div
-            className={`relative flex h-16 shrink-0 items-center border-b border-slate-200 dark:border-slate-800 ${
-              desktopOpen ? "justify-between gap-2 px-4" : "justify-center px-2"
-            }`}
-          >
-            <div className={`flex min-w-0 items-center gap-2 ${desktopOpen ? "" : "justify-center"}`}>
+          <div className="relative flex h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-4 dark:border-slate-800">
+            <div className="flex min-w-0 items-center gap-2">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-indigo-600 text-sm font-bold text-white">
                 S
               </div>
-              {desktopOpen && (
-                <span className="truncate font-bold tracking-tight dark:text-white">SynklyERP</span>
-              )}
+              <span className="truncate font-bold tracking-tight dark:text-white">SynklyERP</span>
             </div>
-            <button
-              type="button"
-              onClick={toggleDesktop}
-              className={`shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 ${
-                desktopOpen ? "" : "absolute right-1.5 top-1/2 -translate-y-1/2"
-              }`}
-              aria-label={desktopOpen ? "Collapse sidebar" : "Expand sidebar"}
-              aria-expanded={desktopOpen}
-            >
-              <Menu size={20} />
-            </button>
           </div>
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <AppSidebar collapsed={!desktopOpen} />
+            <AppSidebar collapsed={false} />
           </div>
         </aside>
 

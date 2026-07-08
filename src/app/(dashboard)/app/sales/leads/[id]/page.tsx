@@ -31,41 +31,7 @@ export default function LeadDetailPage() {
         <ArrowLeft size={14} /> Back to leads
       </Link>
 
-      <LeadDetailEditor lead={lead} activities={activities} />
-
-      {(lead.originalSource || lead.source || attribution) && (
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-900">Source & attribution</h2>
-          <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <dt className="text-slate-500">Original source</dt>
-              <dd className="font-medium text-slate-900">{lead.originalSource ?? lead.source ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">Lead score</dt>
-              <dd className="font-medium text-slate-900">{lead.leadScore}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">Campaign</dt>
-              <dd className="font-medium text-slate-900">{attribution?.campaign ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">UTM source</dt>
-              <dd className="font-medium text-slate-900">{attribution?.utmSource ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">Landing page</dt>
-              <dd className="truncate font-medium text-slate-900">{attribution?.landingPage ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">Location</dt>
-              <dd className="font-medium text-slate-900">
-                {[attribution?.country, attribution?.city].filter(Boolean).join(", ") || "—"}
-              </dd>
-            </div>
-          </dl>
-        </section>
-      )}
+      <LeadDetailEditor lead={lead} attribution={attribution} activities={activities} />
     </div>
   );
 }

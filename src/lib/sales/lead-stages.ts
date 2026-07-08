@@ -28,6 +28,25 @@ export const DETAIL_PROGRESS_STEPS = [
   { key: "NEGOTIATION", label: "Negotiation", shortLabel: "Negotiation" },
 ] as const;
 
+/** Status options for the lead detail dropdown (mockup labels + dot colours). */
+export const LEAD_VIEW_STATUSES = [
+  { value: "FRESH_LEAD", label: "FRESH LEAD", dot: "bg-blue-500" },
+  { value: "PROSPECT", label: "IN DISCUSSION", dot: "bg-amber-500" },
+  { value: "PROPOSAL_SENT", label: "QUOTE SUBMITTED", dot: "bg-teal-500" },
+  { value: "NEGOTIATION", label: "NEGOTIATION", dot: "bg-violet-500" },
+  { value: "CONVERTED", label: "WON", dot: "bg-emerald-500" },
+  { value: "DROPPED", label: "LOST", dot: "bg-rose-500" },
+  { value: "QUALIFIED", label: "QUALIFIED", dot: "bg-sky-500" },
+] as const;
+
+export function viewStatusOption(status: string) {
+  return LEAD_VIEW_STATUSES.find((s) => s.value === status) ?? {
+    value: status,
+    label: statusLabel(status),
+    dot: "bg-slate-400",
+  };
+}
+
 export function detailProgressLabel(status: string) {
   const step = DETAIL_PROGRESS_STEPS.find((s) => s.key === status);
   if (step) return step.label;

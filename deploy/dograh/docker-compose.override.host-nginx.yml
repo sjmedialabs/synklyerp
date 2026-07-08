@@ -1,0 +1,22 @@
+# Bind Dograh to localhost only — host nginx terminates SSL.
+# Placed as /opt/dograh/docker-compose.override.yml
+
+services:
+  postgres:
+    ports: []
+
+  redis:
+    ports: []
+
+  ui:
+    ports:
+      - "127.0.0.1:3010:3010"
+
+  api:
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  minio:
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"

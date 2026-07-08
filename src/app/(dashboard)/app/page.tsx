@@ -6,6 +6,7 @@ import { KpiWidget } from "@/components/dashboard/kpi-widget";
 import { ActivityPanel } from "@/components/dashboard/activity-panel";
 import { QuickActionsPanel } from "@/components/dashboard/quick-actions-panel";
 import { WelcomeBanner } from "@/components/dashboard/welcome-banner";
+import { AssignedLeadsPanel } from "@/components/dashboard/assigned-leads-panel";
 import { useDashboardConfig } from "@/hooks/dashboard/use-dashboard-config";
 import { useSession } from "next-auth/react";
 
@@ -35,6 +36,7 @@ export default function AppDashboardPage() {
   const showWelcome = config.panels.some((p) => p.type === "welcome");
   const showActivity = config.panels.some((p) => p.type === "activity");
   const showShortcuts = config.panels.some((p) => p.type === "quick_actions");
+  const showSalesLeads = (session?.user?.enabledModules ?? []).includes("Sales");
 
   return (
     <div>
@@ -69,6 +71,12 @@ export default function AppDashboardPage() {
         <p className="mb-8 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/50">
           No metrics available for your current permissions. Contact your admin to request access.
         </p>
+      )}
+
+      {showSalesLeads && (
+        <div className="mb-8">
+          <AssignedLeadsPanel />
+        </div>
       )}
 
       {(showActivity || showShortcuts) && (

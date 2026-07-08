@@ -8,8 +8,6 @@ import {
   Eye,
   Mail,
   MessageSquare,
-  MoreHorizontal,
-  Pencil,
   Phone,
   Trash2,
 } from "lucide-react";
@@ -274,9 +272,6 @@ export function LeadsTable({
                         <Link href={`/app/sales/leads/${lead.id}`} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-indigo-600" title="View" aria-label="View lead">
                           <Eye size={16} />
                         </Link>
-                        <button type="button" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-indigo-600" title="Edit" aria-label="Edit lead" onClick={() => onEdit(lead)}>
-                          <Pencil size={16} />
-                        </button>
                         {lead.phone && (
                           <a href={`tel:${lead.phone}`} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-emerald-600" title="Call" aria-label="Call lead">
                             <Phone size={16} />
@@ -292,9 +287,6 @@ export function LeadsTable({
                         </button>
                         <button type="button" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-rose-600" title="Delete" aria-label="Delete lead" onClick={() => onDelete(lead.id)}>
                           <Trash2 size={16} />
-                        </button>
-                        <button type="button" className="rounded-lg p-1.5 text-slate-400" aria-label="More actions">
-                          <MoreHorizontal size={16} />
                         </button>
                       </div>
                     </td>

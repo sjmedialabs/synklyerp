@@ -17,6 +17,7 @@ export type ListLeadsParams = PaginatedQuery & {
   leadType?: string;
   stage?: LeadStageTab;
   source?: string;
+  assignedTo?: string;
 };
 
 export async function listLeads(tenantId: string, params: ListLeadsParams) {
@@ -46,6 +47,7 @@ export async function listLeads(tenantId: string, params: ListLeadsParams) {
 
   if (params.leadType) query = query.eq("lead_type", params.leadType);
   if (params.source) query = query.ilike("source", `%${params.source}%`);
+  if (params.assignedTo) query = query.eq("assigned_to", params.assignedTo);
 
   if (params.search) {
     const q = params.search.replace(/[%_]/g, "");
@@ -131,6 +133,11 @@ export async function updateLead(tenantId: string, id: string, input: Record<str
   if (input.status !== undefined) payload.status = input.status;
   if (input.progress !== undefined) payload.progress = input.progress;
   if (input.notes !== undefined) payload.notes = input.notes || null;
+  if (input.city !== undefined) payload.city = input.city || null;
+  if (input.budget !== undefined) payload.budget = input.budget || null;
+  if (input.projectInterest !== undefined) payload.project_interest = input.projectInterest || null;
+  if (input.aiSummary !== undefined) payload.ai_summary = input.aiSummary || null;
+  if (input.lastCallAt !== undefined) payload.last_call_at = input.lastCallAt || null;
   const { data, error } = await supabase.from("leads").update(payload).eq("tenant_id", tenantId).eq("id", id).is("deleted_at", null).select(leadSelect).single();
   if (error) throw error;
   return mapLead(data);

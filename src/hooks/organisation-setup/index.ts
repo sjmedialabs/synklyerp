@@ -151,3 +151,100 @@ export function useCompanyInformationMutations() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["company-information"] }),
   });
 }
+
+export type WhatsAppConfigResponse = {
+  config: {
+    tenantId: string;
+    phoneNumberId: string | null;
+    businessAccountId: string | null;
+    accessTokenSet: boolean;
+    webhookVerifyToken: string | null;
+    isActive: boolean;
+    updatedAt: string | null;
+  } | null;
+  webhookUrl: string;
+  migrationRequired?: boolean;
+};
+
+export function useWhatsAppConfig() {
+  return useQuery({
+    queryKey: ["whatsapp-config"],
+    queryFn: () => fetchApi<WhatsAppConfigResponse>("/api/organisation/whatsapp-config"),
+    retry: false,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useWhatsAppConfigMutations() {
+  const qc = useQueryClient();
+  return {
+    save: useMutation({
+      mutationFn: (body: unknown) =>
+        fetchApi<WhatsAppConfigResponse>("/api/organisation/whatsapp-config", {
+          method: "PUT",
+          body: JSON.stringify(body),
+        }),
+      onSuccess: () => qc.invalidateQueries({ queryKey: ["whatsapp-config"] }),
+    }),
+    test: useMutation({
+      mutationFn: (body: {
+        phoneNumberId: string;
+        businessAccountId?: string;
+        accessToken?: string;
+      }) =>
+        fetchApi<{ displayPhoneNumber: string | null; verifiedName: string | null }>(
+          "/api/organisation/whatsapp-config",
+          { method: "POST", body: JSON.stringify({ action: "test", ...body }) }
+        ),
+    }),
+  };
+}
+
+export type DograhConfigResponse = {
+  config: {
+    tenantId: string;
+    serverUrl: string | null;
+    apiKeySet: boolean;
+    publicAppUrl: string | null;
+    isActive: boolean;
+    updatedAt: string | null;
+  } | null;
+  resolved: { serverUrl: string; publicAppUrl: string; isActive: boolean } | null;
+  envFallback: { serverUrl: string | null; apiKeySet: boolean; publicAppUrl: string };
+  customerUrl: string;
+  webhookUrl: string;
+  updateStatusUrl: string;
+  migrationRequired?: boolean;
+};
+
+export function useDograhConfig() {
+  return useQuery({
+    queryKey: ["dograh-config"],
+    queryFn: () => fetchApi<DograhConfigResponse>("/api/organisation/dograh-config"),
+    retry: false,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useDograhConfigMutations() {
+  const qc = useQueryClient();
+  return {
+    save: useMutation({
+      mutationFn: (body: unknown) =>
+        fetchApi<DograhConfigResponse>("/api/organisation/dograh-config", {
+          method: "PUT",
+          body: JSON.stringify(body),
+        }),
+      onSuccess: () => qc.invalidateQueries({ queryKey: ["dograh-config"] }),
+    }),
+    test: useMutation({
+      mutationFn: (body: { serverUrl?: string; apiKey?: string }) =>
+        fetchApi<{ message: string }>("/api/organisation/dograh-config", {
+          method: "POST",
+          body: JSON.stringify({ action: "test", ...body }),
+        }),
+    }),
+  };
+}

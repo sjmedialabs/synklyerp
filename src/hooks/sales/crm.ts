@@ -121,6 +121,15 @@ export function useLeadDetail(leadId: string) {
   });
 }
 
+export function useAddLeadNote(leadId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (note: string) =>
+      fetchApi(`/api/sales/leads/${leadId}/activities`, { method: "POST", body: JSON.stringify({ note }) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["leads", leadId, "detail"] }),
+  });
+}
+
 async function getJsonWithMeta<T>(url: string): Promise<{ data: T; meta?: PaginationMeta }> {
   const res = await fetch(url);
   const json = await res.json();
@@ -377,5 +386,141 @@ export function useCommunicationLogs() {
           createdAt: string;
         }[]
       >("/api/sales/capture/communication/logs?limit=100"),
+  });
+}
+
+export type LeadEngagementSummary = {
+  counts: Record<"call" | "sms" | "email" | "whatsapp", number>;
+  history: {
+    id: string;
+    channel: "call" | "sms" | "email" | "whatsapp";
+    action: string;
+    userId: string | null;
+    createdAt: string;
+  }[];
+};
+
+export function useLeadEngagements(leadId: string) {
+  return useQuery({
+    queryKey: ["leads", leadId, "engagements"],
+    queryFn: () => getJson<LeadEngagementSummary>(`/api/sales/leads/${leadId}/engagements`),
+    enabled: !!leadId,
+  });
+}
+
+export function useLogLeadEngagement(leadId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { channel: "call" | "sms" | "email" | "whatsapp"; action?: string }) =>
+      fetchApi(`/api/sales/leads/${leadId}/engagements`, { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["leads", leadId, "engagements"] }),
+  });
+}
+
+export type WhatsAppChatData = {
+  conversation: {
+    id: string;
+    leadId: string;
+    phone: string;
+    status: string;
+    aiMode: string;
+    summary: string | null;
+    lastMessageAt: string | null;
+  };
+  messages: {
+    id: string;
+    direction: "inbound" | "outbound";
+    body: string;
+    senderType: string;
+    createdAt: string;
+    externalId: string | null;
+    delivered: boolean;
+  }[];
+  config: { is_active: boolean; phone_number_id: string | null; business_account_id: string | null } | null;
+};
+
+export function useWhatsAppChat(leadId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["leads", leadId, "whatsapp"],
+    queryFn: () => getJson<WhatsAppChatData>(`/api/sales/leads/${leadId}/whatsapp`),
+    enabled: !!leadId && enabled,
+    refetchInterval: enabled ? 15_000 : false,
+  });
+}
+
+export function useWhatsAppMutations(leadId: string) {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["leads", leadId, "whatsapp"] });
+  return {
+    validate: useMutation({
+      mutationFn: (phone: string) =>
+        fetchApi<{ normalized: string; display: string; verified: boolean }>(`/api/sales/leads/${leadId}/whatsapp`, {
+          method: "POST",
+          body: JSON.stringify({ action: "validate", phone }),
+        }),
+    }),
+    send: useMutation({
+      mutationFn: (message: string) =>
+        fetchApi(`/api/sales/leads/${leadId}/whatsapp`, { method: "POST", body: JSON.stringify({ message }) }),
+      onSuccess: invalidate,
+    }),
+    summarize: useMutation({
+      mutationFn: () =>
+        fetchApi<{ summary: string }>(`/api/sales/leads/${leadId}/whatsapp`, {
+          method: "POST",
+          body: JSON.stringify({ action: "summarize" }),
+        }),
+      onSuccess: invalidate,
+    }),
+  };
+}
+
+export function useDograhCall(leadId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      fetchApi<{ callId: string | null; phone: string }>("/api/dograh/create-call", {
+        method: "POST",
+        body: JSON.stringify({ leadId }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leads", leadId] });
+      qc.invalidateQueries({ queryKey: ["leads", leadId, "engagements"] });
+      qc.invalidateQueries({ queryKey: ["leads", leadId, "detail"] });
+    },
+  });
+}
+
+export type CommunicationHistoryQuery = {
+  channel?: string;
+  search?: string;
+  assignedTo?: string;
+  leadId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  sortOrder?: "asc" | "desc";
+  page?: number;
+  limit?: number;
+};
+
+export function useCommunicationHistory(params: CommunicationHistoryQuery) {
+  const qs = new URLSearchParams();
+  qs.set("limit", String(params.limit ?? 30));
+  qs.set("page", String(params.page ?? 1));
+  if (params.channel && params.channel !== "all") qs.set("channel", params.channel);
+  if (params.search) qs.set("search", params.search);
+  if (params.assignedTo) qs.set("assignedTo", params.assignedTo);
+  if (params.leadId) qs.set("leadId", params.leadId);
+  if (params.dateFrom) qs.set("dateFrom", params.dateFrom);
+  if (params.dateTo) qs.set("dateTo", params.dateTo);
+  if (params.sortOrder) qs.set("sortOrder", params.sortOrder);
+
+  return useQuery({
+    queryKey: ["communication-history", params],
+    queryFn: () =>
+      getJsonWithMeta<import("@/repositories/sales/crm/communication-history").CommunicationHistoryItem[]>(
+        `/api/sales/leads/communication-history?${qs.toString()}`
+      ),
+    placeholderData: (prev) => prev,
   });
 }

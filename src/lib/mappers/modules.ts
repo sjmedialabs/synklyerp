@@ -66,11 +66,17 @@ export type Lead = {
   originalSource: string | null;
   crmLeadSourceId: string | null;
   leadScore: number;
+  aiSummary: string | null;
+  lastCallAt: string | null;
+  city: string | null;
+  budget: string | null;
+  projectInterest: string | null;
   assignedTo: string | null;
   status: string;
   progress: number;
   notes: string | null;
   createdAt: string;
+  updatedAt: string;
   service?: { id: string; name: string } | null;
   assignee?: { id: string; name: string | null } | null;
 };
@@ -217,11 +223,17 @@ export function mapLead(row: Record<string, unknown>): Lead {
     originalSource: (row.original_source as string) ?? null,
     crmLeadSourceId: (row.crm_lead_source_id as string) ?? null,
     leadScore: Number(row.lead_score ?? 0),
+    aiSummary: (row.ai_summary as string) ?? null,
+    lastCallAt: (row.last_call_at as string) ?? null,
+    city: (row.city as string) ?? null,
+    budget: (row.budget as string) ?? null,
+    projectInterest: (row.project_interest as string) ?? null,
     assignedTo: (row.assigned_to as string) ?? null,
     status: row.status as string,
     progress: Number(row.progress ?? 0),
     notes: (row.notes as string) ?? null,
     createdAt: row.created_at as string,
+    updatedAt: (row.updated_at as string) ?? (row.created_at as string),
     service: s ?? null,
     assignee: a ? { id: a.id, name: a.name } : null,
   };

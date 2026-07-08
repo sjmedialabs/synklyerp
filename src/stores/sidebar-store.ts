@@ -10,10 +10,10 @@ type SidebarState = {
   setHydrated: (value: boolean) => void;
 };
 
-export const useSidebarStore = create<SidebarState>((set, get) => ({
-  desktopOpen: false,
+export const useSidebarStore = create<SidebarState>((set) => ({
+  desktopOpen: true,
   hydrated: true,
   setDesktopOpen: (open) => set({ desktopOpen: open }),
-  toggleDesktop: () => set({ desktopOpen: !get().desktopOpen }),
+  toggleDesktop: () => set({ desktopOpen: true }),
   setHydrated: (value) => set({ hydrated: value }),
 }));

@@ -105,6 +105,13 @@ export function handleApiError(error: unknown) {
     if (error.message === "EMAIL_EXISTS") {
       return { status: 409, code: "EMAIL_EXISTS", message: "A user with this email already exists" };
     }
+    if (error.message === "SCHEMA_NOT_MIGRATED") {
+      return {
+        status: 503,
+        code: "SCHEMA_NOT_MIGRATED",
+        message: "Database migration 024 is required. Apply supabase/migrations/024_crm_lead_engagement_whatsapp.sql",
+      };
+    }
   }
   return { status: 500, code: "INTERNAL_ERROR", message: "Internal server error" };
 }

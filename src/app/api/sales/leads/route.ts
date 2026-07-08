@@ -10,19 +10,23 @@ import { z } from "zod";
 
 export async function GET(req: Request) {
   try {
-    const { tenantId } = await getTenantApiContext(P.sales.leads.read, { req });
+    const ctx = await getTenantApiContext(P.sales.leads.read, { req });
     const url = new URL(req.url);
     const params = parsePagination(url.searchParams);
     const status = url.searchParams.get("status") ?? undefined;
     const stage = url.searchParams.get("stage") ?? undefined;
     const leadType = url.searchParams.get("leadType") ?? undefined;
     const source = url.searchParams.get("source") ?? undefined;
-    const result = await repo.listLeads(tenantId, {
+    const mine = url.searchParams.get("mine") === "1";
+    const isAdmin = ctx.role === "ADMIN" || ctx.role === "SUPERADMIN";
+    const assignedTo = isAdmin ? (mine ? ctx.userId : undefined) : ctx.userId;
+    const result = await repo.listLeads(ctx.tenantId, {
       ...params,
       status,
       stage: stage as LeadStageTab | undefined,
       leadType,
       source,
+      assignedTo,
     });
     return apiSuccess(result.items, paginationMeta(result.total, result.page, result.limit));
   } catch (error) {
