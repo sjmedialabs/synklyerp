@@ -76,6 +76,46 @@ async function seedNode(node: MenuSeedNode, parentId: string | null, sortOrder: 
   return menuId;
 }
 
+async function syncHrDesignationCategoryAssignments() {
+  const supabase = createAdminClient();
+  const { data: hrMenus } = await supabase
+    .from("sidebar_menus")
+    .select("id, slug")
+    .in("slug", ["hr-master-data", "hr-designations"])
+    .is("deleted_at", null);
+
+  if (!hrMenus?.length) return;
+
+  const { data: employeeLinks } = await supabase
+    .from("business_category_menu_assignments")
+    .select("business_type_id, sidebar_menus!inner(slug)")
+    .eq("is_enabled", true)
+    .eq("sidebar_menus.slug", "employees");
+
+  const typeIds = new Set(
+    (employeeLinks ?? []).map((row) => (row as { business_type_id: string }).business_type_id)
+  );
+
+  for (const typeId of typeIds) {
+    for (const menu of hrMenus) {
+      const { data: existing } = await supabase
+        .from("business_category_menu_assignments")
+        .select("menu_id")
+        .eq("business_type_id", typeId)
+        .eq("menu_id", menu.id)
+        .maybeSingle();
+
+      if (!existing) {
+        await supabase.from("business_category_menu_assignments").insert({
+          business_type_id: typeId,
+          menu_id: menu.id,
+          is_enabled: true,
+        });
+      }
+    }
+  }
+}
+
 async function linkTemplateMenus() {
   const supabase = createAdminClient();
   const { data: menus } = await supabase.from("sidebar_menus").select("id, slug").is("deleted_at", null);
@@ -111,6 +151,8 @@ async function main() {
   }
   console.log("Linking template items...");
   await linkTemplateMenus();
+  console.log("Syncing HR designation category assignments...");
+  await syncHrDesignationCategoryAssignments();
   console.log("Sidebar seed complete.");
 }
 

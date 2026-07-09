@@ -38,6 +38,11 @@ export type Designation = {
   tenantId: string;
   name: string;
   status: string;
+  department: string | null;
+  gradeLevel: string | null;
+  reportsToDesignationId: string | null;
+  reportsToName: string | null;
+  employeeCount: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -92,12 +97,23 @@ export function mapDivision(row: DivisionRow): Division {
   };
 }
 
-export function mapDesignation(row: DesignationRow): Designation {
+export function mapDesignation(
+  row: DesignationRow & {
+    reports_to?: { id: string; name: string } | { id: string; name: string }[] | null;
+    employee_count?: number;
+  }
+): Designation {
+  const reportsTo = Array.isArray(row.reports_to) ? row.reports_to[0] : row.reports_to;
   return {
     id: row.id,
     tenantId: row.tenant_id,
     name: row.name,
     status: row.status,
+    department: (row.department as string | null) ?? null,
+    gradeLevel: (row.grade_level as string | null) ?? null,
+    reportsToDesignationId: (row.reports_to_designation_id as string | null) ?? null,
+    reportsToName: reportsTo?.name ?? null,
+    employeeCount: Number(row.employee_count ?? 0),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -133,11 +149,21 @@ export function divisionToDb(
   };
 }
 
-export function designationToDb(data: { tenantId: string; name: string; status: string }) {
+export function designationToDb(data: {
+  tenantId: string;
+  name: string;
+  status: string;
+  department?: string | null;
+  gradeLevel?: string | null;
+  reportsToDesignationId?: string | null;
+}) {
   return {
     tenant_id: data.tenantId,
     name: data.name,
     status: data.status,
+    department: data.department ?? null,
+    grade_level: data.gradeLevel ?? null,
+    reports_to_designation_id: data.reportsToDesignationId ?? null,
   };
 }
 

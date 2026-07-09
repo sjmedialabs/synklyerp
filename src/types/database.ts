@@ -112,6 +112,9 @@ export type Database = {
           tenant_id: string;
           name: string;
           status: string;
+          department: string | null;
+          grade_level: string | null;
+          reports_to_designation_id: string | null;
           created_at: string;
           updated_at: string;
           deleted_at: string | null;

@@ -21,6 +21,9 @@ export const NAV_ITEM_ICONS: Record<string, string> = {
   "business-settings": "settings-2",
 
   hr: "users",
+  "hr-master-data": "database",
+  "hr-designations": "badge-check",
+  "master-data": "database",
   employees: "user-check",
   attendance: "calendar-check",
   payroll: "banknote",

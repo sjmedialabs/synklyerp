@@ -23,6 +23,12 @@ export const divisionSchema = z.object({
 export const designationSchema = z.object({
   name: z.string().min(2),
   status: z.enum(["ACTIVE", "INACTIVE"]),
+  department: z.string().optional().nullable(),
+  gradeLevel: z.string().optional().nullable(),
+  reportsToDesignationId: z
+    .union([z.string().uuid(), z.literal(""), z.null()])
+    .optional()
+    .transform((v) => (!v || v === "" ? null : v)),
 });
 
 const optionalUuid = z

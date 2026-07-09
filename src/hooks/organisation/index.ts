@@ -84,9 +84,64 @@ export function useDesignations(search = "") {
   });
 }
 
+export type DesignationsListParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  department?: string;
+  status?: string;
+  gradeLevel?: string;
+};
+
+export type DesignationsListResponse = {
+  items: Designation[];
+  meta?: { page: number; limit: number; total: number; totalPages: number };
+};
+
+export function useDesignationsList(params: DesignationsListParams) {
+  const qs = new URLSearchParams();
+  qs.set("page", String(params.page ?? 1));
+  qs.set("limit", String(params.limit ?? 10));
+  if (params.search) qs.set("search", params.search);
+  if (params.department) qs.set("department", params.department);
+  if (params.status) qs.set("status", params.status);
+  if (params.gradeLevel) qs.set("gradeLevel", params.gradeLevel);
+
+  return useQuery({
+    queryKey: ["designations-list", params],
+    queryFn: async () => {
+      const res = await fetch(`/api/organisation/designations?${qs}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error?.message ?? "Request failed");
+      return {
+        items: json.data as Designation[],
+        meta: json.meta as DesignationsListResponse["meta"],
+      };
+    },
+  });
+}
+
+export function useDesignationStats() {
+  return useQuery({
+    queryKey: ["designation-stats"],
+    queryFn: () =>
+      getJson<{
+        total: number;
+        active: number;
+        inactive: number;
+        departmentsMapped: number;
+        filters: { departments: string[]; gradeLevels: string[] };
+      }>("/api/organisation/designations/stats"),
+  });
+}
+
 export function useDesignationMutations() {
   const qc = useQueryClient();
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["designations"] });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["designations"] });
+    qc.invalidateQueries({ queryKey: ["designations-list"] });
+    qc.invalidateQueries({ queryKey: ["designation-stats"] });
+  };
   return {
     create: useMutation({
       mutationFn: (body: unknown) =>

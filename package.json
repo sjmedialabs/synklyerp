@@ -14,6 +14,8 @@
     "db:apply:025": "tsx scripts/apply-migration-025.ts",
     "db:apply:026": "tsx scripts/apply-migration-026.ts",
     "db:apply:028": "tsx scripts/apply-migration-028.ts",
+    "db:apply:030": "tsx scripts/apply-migration-030.ts",
+    "db:apply:031": "tsx scripts/apply-migration-031.ts",
     "db:seed:category-features": "tsx scripts/seed-category-features.ts",
     "generate:module-pages": "tsx scripts/generate-module-pages.ts",
     "migrate:scope-pages": "tsx scripts/migrate-scope-to-placeholder.ts",

@@ -11,7 +11,9 @@ export async function GET(req: Request) {
     const { tenantId } = await getTenantApiContext(P.organisation.designations.read, { req });
     const { searchParams } = new URL(req.url);
     const params = parsePagination(searchParams);
-    const result = await repo.listDesignations(tenantId, params);
+    const department = searchParams.get("department") ?? undefined;
+    const gradeLevel = searchParams.get("gradeLevel") ?? undefined;
+    const result = await repo.listDesignations(tenantId, { ...params, department, gradeLevel });
     return apiSuccess(result.items, paginationMeta(result.total, result.page, result.limit));
   } catch (error) {
     const err = handleApiError(error);
