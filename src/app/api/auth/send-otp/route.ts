@@ -1,6 +1,7 @@
 import { apiError, apiSuccess } from "@/lib/api/response";
 import { verifyCaptcha } from "@/lib/auth/captcha";
 import { deliverOtp, shouldLogDevOtp } from "@/lib/auth/delivery";
+import { getAuthPlatformSettings } from "@/lib/auth/platform-settings";
 import {
   createOtp,
   devOtpEnabled,
@@ -70,10 +71,28 @@ export async function POST(req: Request) {
       if (!user) return apiError("No account found for this email", 404, "NOT_FOUND");
     }
 
+    if (purpose === "signup") {
+      const settings = await getAuthPlatformSettings();
+      if (!settings.otpSignupEnabled) {
+        return apiError(
+          "OTP signup is disabled. Complete registration and verify your email instead.",
+          403,
+          "OTP_DISABLED"
+        );
+      }
+    }
+
     if (purpose === "signup" && channel === "email") {
       const existing = await findUserByEmail(identifier);
       if (existing) {
         return apiError("An account with this email already exists", 409, "CONFLICT");
+      }
+    }
+
+    if (purpose === "signup" && channel === "sms") {
+      const existing = await findUserByPhone(identifier);
+      if (existing) {
+        return apiError("An account with this mobile number already exists", 409, "CONFLICT");
       }
     }
 

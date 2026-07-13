@@ -3,6 +3,7 @@ export const PUBLIC_PATH_PREFIXES = [
   "/",
   "/login",
   "/signup",
+  "/verify-email",
   "/forgot-password",
   "/api-docs",
   "/p",

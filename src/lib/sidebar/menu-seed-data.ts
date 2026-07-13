@@ -1,3 +1,5 @@
+import { FINANCE_MENU_CHILDREN, LEGACY_FINANCE_MENU_SLUGS } from "@/lib/finance/menu-structure";
+
 /**
  * Canonical menu catalog used ONLY for database seeding.
  * Runtime sidebar always loads from `sidebar_menus` table.
@@ -103,39 +105,8 @@ export const SIDEBAR_MENU_CATALOG: MenuSeedNode[] = [
     menuType: "section",
     sortOrder: 30,
     permissionModule: "finance",
-    permissionFeature: "services",
-    children: [
-      { slug: "accounting", name: "Accounting", path: "/app/finance/accounting", icon: "calculator", status: "pending", sortOrder: 1 },
-      { slug: "invoicing", name: "Invoicing", path: "/app/finance/invoicing", icon: "file-text", status: "pending", sortOrder: 2 },
-      { slug: "budgeting", name: "Budgeting", path: "/app/finance/budgeting", icon: "pie-chart", status: "pending", sortOrder: 3 },
-      { slug: "expenses", name: "Expenses", path: "/app/finance/expenses", icon: "wallet", status: "pending", sortOrder: 4 },
-      { slug: "tax-mgmt", name: "Tax Management", path: "/app/finance/tax-management", icon: "percent", status: "pending", sortOrder: 5 },
-      { slug: "banking", name: "Banking", path: "/app/finance/banking", icon: "landmark", status: "pending", sortOrder: 6 },
-      { slug: "vendor-payments", name: "Vendor Payments", path: "/app/finance/vendor-payments", icon: "hand-coins", status: "pending", sortOrder: 7 },
-      { slug: "purchase-orders", name: "Purchase Orders", path: "/app/finance/purchase-orders", icon: "shopping-cart", status: "pending", sortOrder: 8 },
-      { slug: "financial-reports", name: "Financial Reports", path: "/app/finance/reports", icon: "bar-chart-3", status: "pending", sortOrder: 9 },
-      { slug: "multi-currency", name: "Multi Currency", path: "/app/finance/multi-currency", icon: "coins", status: "pending", sortOrder: 10 },
-      { slug: "cost-centers", name: "Cost Centers", path: "/app/finance/cost-centers", icon: "target", status: "pending", sortOrder: 11 },
-      {
-        slug: "services-hub",
-        name: "Services Hub",
-        icon: "briefcase",
-        menuType: "group",
-        hiddenForBusinessTypes: ["Product"],
-        requiredSubmodules: ["crm", "client_billing", "sla_management"],
-        sortOrder: 12,
-        children: [
-          { slug: "service-catalog", name: "Service Catalog", path: "/app/finance/services", icon: "list", permissionModule: "finance", permissionFeature: "services", status: "built", sortOrder: 1 },
-          { slug: "pricing-rules", name: "Pricing Rules", path: "/app/finance/services/pricing", icon: "tag", permissionModule: "finance", permissionFeature: "pricing", status: "built", sortOrder: 2 },
-          { slug: "packages", name: "Service Packages", path: "/app/finance/services/packages", icon: "package", permissionModule: "finance", permissionFeature: "packages", status: "built", sortOrder: 3 },
-          { slug: "sla", name: "SLA & Policies", path: "/app/finance/services/sla", icon: "shield-check", permissionModule: "finance", permissionFeature: "sla", status: "built", sortOrder: 4 },
-          { slug: "service-contracts", name: "Service Contracts", path: "/app/finance/services/contracts", icon: "file-signature", status: "pending", sortOrder: 5 },
-          { slug: "amc-management", name: "AMC Management", path: "/app/finance/services/amc", icon: "wrench", status: "pending", sortOrder: 6 },
-          { slug: "subscription-billing", name: "Subscription Billing", path: "/app/finance/services/subscriptions", icon: "repeat", status: "pending", sortOrder: 7 },
-          { slug: "service-requests", name: "Service Requests", path: "/app/finance/services/requests", icon: "inbox", status: "pending", sortOrder: 8 },
-        ],
-      },
-    ],
+    permissionFeature: "dashboard",
+    children: FINANCE_MENU_CHILDREN,
   },
   {
     slug: "sales",
@@ -297,4 +268,5 @@ export const REMOVED_MENU_SLUGS = new Set([
   "opportunities",
   "quotations",
   "customer-support",
+  ...LEGACY_FINANCE_MENU_SLUGS,
 ]);

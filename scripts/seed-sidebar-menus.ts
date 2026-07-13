@@ -76,6 +76,50 @@ async function seedNode(node: MenuSeedNode, parentId: string | null, sortOrder: 
   return menuId;
 }
 
+async function syncFinanceCategoryAssignments() {
+  const supabase = createAdminClient();
+
+  const { data: financeMenus } = await supabase
+    .from("sidebar_menus")
+    .select("id")
+    .is("deleted_at", null)
+    .or("slug.eq.finance,slug.like.fin-%,slug.like.finance-%");
+
+  if (!financeMenus?.length) return;
+
+  const { data: financeLinks } = await supabase
+    .from("business_category_menu_assignments")
+    .select("business_type_id")
+    .in(
+      "menu_id",
+      financeMenus.map((m) => m.id as string)
+    )
+    .eq("is_enabled", true);
+
+  const typeIds = new Set((financeLinks ?? []).map((row) => (row as { business_type_id: string }).business_type_id));
+  if (!typeIds.size) return;
+
+  for (const typeId of typeIds) {
+    for (const menu of financeMenus) {
+      const menuId = menu.id as string;
+      const { data: existing } = await supabase
+        .from("business_category_menu_assignments")
+        .select("menu_id")
+        .eq("business_type_id", typeId)
+        .eq("menu_id", menuId)
+        .maybeSingle();
+
+      if (!existing) {
+        await supabase.from("business_category_menu_assignments").insert({
+          business_type_id: typeId,
+          menu_id: menuId,
+          is_enabled: true,
+        });
+      }
+    }
+  }
+}
+
 async function syncHrDesignationCategoryAssignments() {
   const supabase = createAdminClient();
   const { data: hrMenus } = await supabase
@@ -153,6 +197,8 @@ async function main() {
   await linkTemplateMenus();
   console.log("Syncing HR designation category assignments...");
   await syncHrDesignationCategoryAssignments();
+  console.log("Syncing Finance category assignments...");
+  await syncFinanceCategoryAssignments();
   console.log("Sidebar seed complete.");
 }
 

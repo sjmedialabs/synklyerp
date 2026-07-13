@@ -26,6 +26,8 @@ export const P = {
     payroll: featurePerms("hr", "payroll"),
   },
   finance: {
+    dashboard: featurePerms("finance", "dashboard"),
+    masters: featurePerms("finance", "masters"),
     services: featurePerms("finance", "services"),
     pricing: featurePerms("finance", "pricing"),
     packages: featurePerms("finance", "packages"),

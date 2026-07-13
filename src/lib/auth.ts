@@ -142,6 +142,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
+        if ("emailVerified" in user && user.emailVerified === null) {
+          return null;
+        }
+
         const valid = await verifyPassword(password, user.passwordHash);
         if (!valid) {
           try {

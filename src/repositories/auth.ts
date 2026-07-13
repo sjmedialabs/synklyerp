@@ -7,7 +7,7 @@ export async function findUserByEmail(email: string) {
     .from("users")
     .select(
       `
-      id, name, email, password_hash, status, tenant_id,
+      id, name, email, password_hash, status, tenant_id, email_verified,
       roles:role_id ( name ),
       tenants:tenant_id ( name, business_type )
     `
@@ -25,6 +25,7 @@ export async function findUserByEmail(email: string) {
     email: string;
     password_hash: string | null;
     status: string;
+    email_verified: string | null;
     tenant_id: string | null;
     roles: { name: string } | { name: string }[] | null;
     tenants: { name: string; business_type: string } | { name: string; business_type: string }[] | null;
@@ -39,6 +40,7 @@ export async function findUserByEmail(email: string) {
     email: row.email,
     passwordHash: row.password_hash,
     status: row.status,
+    emailVerified: row.email_verified,
     tenantId: row.tenant_id,
     roleName: role?.name as AppRole | undefined,
     tenantName: tenant?.name ?? null,

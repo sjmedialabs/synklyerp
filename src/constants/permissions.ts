@@ -7,7 +7,7 @@ export const PERMISSION_MODULES = [
     features: ["branches", "divisions", "designations", "users", "taxes", "roles"],
   },
   { module: "hr", features: ["employees", "attendance", "payroll"] },
-  { module: "finance", features: ["services", "pricing", "packages", "sla"] },
+  { module: "finance", features: ["dashboard", "masters", "services", "pricing", "packages", "sla"] },
   { module: "sales", features: ["leads"] },
   { module: "projects", features: ["projects"] },
   { module: "tenant", features: ["onboarding", "settings"] },

@@ -62,22 +62,10 @@ export const APP_NAVIGATION: NavItem[] = [
     label: "Finance",
     icon: Receipt,
     children: [
-      { id: "accounting", label: "Accounting", href: "/app/finance/accounting", status: "pending" },
-      { id: "invoicing", label: "Invoicing", href: "/app/finance/invoicing", status: "pending" },
-      { id: "budgeting", label: "Budgeting", href: "/app/finance/budgeting", status: "pending" },
-      { id: "expenses", label: "Expenses", href: "/app/finance/expenses", status: "pending" },
-      { id: "tax-mgmt", label: "Tax Management", href: "/app/finance/tax-management", status: "pending" },
-      {
-        id: "services-hub",
-        label: "Services Hub",
-        status: "built",
-        children: [
-          { id: "service-catalog", label: "Service Catalog", href: "/app/finance/services", status: "built" },
-          { id: "pricing-rules", label: "Pricing Rules", href: "/app/finance/services/pricing", status: "built" },
-          { id: "packages", label: "Service Packages", href: "/app/finance/services/packages", status: "built" },
-          { id: "sla", label: "SLA & Policies", href: "/app/finance/services/sla", status: "built" },
-        ],
-      },
+      { id: "finance-dashboard", label: "Dashboard", href: "/app/finance/dashboard", status: "built" },
+      { id: "finance-masters", label: "Masters", href: "/app/finance/masters/chart-of-accounts", status: "scope" },
+      { id: "finance-transactions", label: "Transactions", href: "/app/finance/transactions/journal-entry", status: "scope" },
+      { id: "finance-reports-analytics", label: "Reports & Analytics", href: "/app/finance/reports-analytics/balance-sheet", status: "scope" },
     ],
   },
   {

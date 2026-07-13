@@ -9,6 +9,7 @@ import {
   LayoutTemplate,
   Link2,
   Shield,
+  Settings,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ const PLATFORM_NAV = [
     items: [
       { href: "/superadmin", label: "Tenants", icon: Users },
       { href: "/superadmin/plans", label: "Plans", icon: Shield },
+      { href: "/superadmin/settings/auth", label: "Auth Settings", icon: Settings },
       { href: "/superadmin/cms", label: "CMS", icon: FileText },
     ],
   },

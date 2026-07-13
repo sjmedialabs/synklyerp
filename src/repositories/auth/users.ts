@@ -40,14 +40,17 @@ function mapUser(data: Record<string, unknown>) {
 
 export async function createTenantWithAdmin(input: {
   companyName: string;
-  fullName: string;
+  fullName?: string;
   email: string;
-  phone?: string;
+  phone: string;
   password: string;
   planSlug?: string;
+  emailVerified?: boolean;
 }) {
   const supabase = createAdminClient();
   const passwordHash = await hashPassword(input.password);
+  const displayName = input.fullName?.trim() || input.companyName.trim();
+  const normalizedPhone = input.phone.replace(/\s/g, "");
 
   const { data: tenant, error: tenantErr } = await supabase
     .from("tenants")
@@ -55,7 +58,7 @@ export async function createTenantWithAdmin(input: {
       name: input.companyName,
       business_type: "Hybrid",
       plan: "TRIAL",
-      contact_name: input.fullName,
+      contact_name: displayName,
       contact_email: input.email,
       status: "ACTIVE",
     })
@@ -74,12 +77,13 @@ export async function createTenantWithAdmin(input: {
     .from("users")
     .insert({
       tenant_id: tenant.id,
-      name: input.fullName,
+      name: displayName,
       email: input.email.toLowerCase(),
-      phone: input.phone?.replace(/\s/g, "") || null,
+      phone: normalizedPhone,
       password_hash: passwordHash,
       role_id: role.id,
       status: "ACTIVE",
+      email_verified: input.emailVerified ? new Date().toISOString() : null,
     })
     .select()
     .single();

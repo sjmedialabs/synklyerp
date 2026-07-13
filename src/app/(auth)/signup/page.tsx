@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
-import { Building2, User, Mail, Smartphone, Lock, Eye, EyeOff } from "lucide-react";
+import { Building2, Mail, Smartphone, Lock, Eye, EyeOff } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { OtpInput } from "@/components/auth/otp-input";
 import { PasswordStrengthMeter } from "@/components/auth/password-strength";
@@ -15,8 +15,7 @@ import { evaluatePassword } from "@/lib/auth/password-policy";
 import { bootstrapAuthSession, completeAuthRedirect } from "@/lib/auth/client";
 import { useOtpResend } from "@/hooks/auth/use-otp-resend";
 
-type SignupChannel = "email" | "sms";
-type SignupStep = "plan" | "details" | "verify";
+type SignupStep = "form" | "verify" | "check-email";
 
 type PublicPlan = {
   id: string;
@@ -24,53 +23,56 @@ type PublicPlan = {
   slug: string;
   description: string | null;
   monthlyPriceCents: number;
-  features: string[];
   trialDays: number;
 };
 
 export default function SignupPage() {
-  const [channel, setChannel] = useState<SignupChannel>("email");
-  const [step, setStep] = useState<SignupStep>("plan");
+  const [step, setStep] = useState<SignupStep>("form");
   const [plans, setPlans] = useState<PublicPlan[]>([]);
   const [planSlug, setPlanSlug] = useState("");
+  const [otpSignupEnabled, setOtpSignupEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [devHint, setDevHint] = useState("");
+  const [emailOtp, setEmailOtp] = useState("");
+  const [smsOtp, setSmsOtp] = useState("");
+  const [devEmailHint, setDevEmailHint] = useState("");
+  const [devSmsHint, setDevSmsHint] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const { seconds, canResend, startCooldown } = useOtpResend();
   const [form, setForm] = useState({
     companyName: "",
-    fullName: "",
     email: "",
     phone: "",
     password: "",
   });
 
-  const identifier = channel === "email" ? form.email : form.phone;
   const captchaRequired = captchaEnabled();
   const captchaOk = !captchaRequired || !!captchaToken;
   const passwordCheck = useMemo(() => evaluatePassword(form.password), [form.password]);
 
-  const detailsValid =
+  const formValid =
     !!form.companyName.trim() &&
-    !!form.fullName.trim() &&
     !!form.email.trim() &&
-    (channel === "sms" ? !!form.phone.trim() : true) &&
+    !!form.phone.trim() &&
     passwordCheck.valid &&
-    captchaOk;
+    captchaOk &&
+    !!planSlug;
 
   useEffect(() => {
     const fromUrl = new URLSearchParams(window.location.search).get("plan");
-    fetch("/api/public/plans")
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.success && json.data?.length) {
-          setPlans(json.data);
-          if (fromUrl && json.data.some((p: PublicPlan) => p.slug === fromUrl)) {
+    Promise.all([fetch("/api/public/plans"), fetch("/api/public/auth-settings")])
+      .then(async ([plansRes, settingsRes]) => {
+        const plansJson = await plansRes.json();
+        const settingsJson = await settingsRes.json();
+        if (settingsJson.success) {
+          setOtpSignupEnabled(Boolean(settingsJson.data?.otpSignupEnabled));
+        }
+        if (plansJson.success && plansJson.data?.length) {
+          setPlans(plansJson.data);
+          if (fromUrl && plansJson.data.some((p: PublicPlan) => p.slug === fromUrl)) {
             setPlanSlug(fromUrl);
           } else {
-            setPlanSlug(json.data[0]?.slug ?? "starter");
+            setPlanSlug(plansJson.data[0]?.slug ?? "starter");
           }
         } else {
           setPlanSlug(fromUrl ?? "starter");
@@ -79,29 +81,42 @@ export default function SignupPage() {
       .catch(() => setPlanSlug(fromUrl ?? "starter"));
   }, []);
 
-  const sendOtp = async () => {
-    if (!planSlug) {
-      toast.error("Select a subscription plan");
-      return;
-    }
-    if (!detailsValid) {
+  const sendOtps = async () => {
+    if (!formValid) {
       toast.error(passwordCheck.hints[0] ?? passwordCheck.message ?? "Fill in all required fields");
       return;
     }
 
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel, identifier, purpose: "signup", captchaToken: captchaToken || undefined }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error?.message ?? "Failed to send OTP");
+      const payload = {
+        purpose: "signup",
+        captchaToken: captchaToken || undefined,
+      };
+
+      const [emailRes, smsRes] = await Promise.all([
+        fetch("/api/auth/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, channel: "email", identifier: form.email }),
+        }),
+        fetch("/api/auth/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, channel: "sms", identifier: form.phone }),
+        }),
+      ]);
+
+      const emailJson = await emailRes.json();
+      const smsJson = await smsRes.json();
+      if (!emailJson.success) throw new Error(emailJson.error?.message ?? "Failed to send email code");
+      if (!smsJson.success) throw new Error(smsJson.error?.message ?? "Failed to send mobile code");
+
       setStep("verify");
-      if (json.data?.devCode) setDevHint(json.data.devCode);
-      startCooldown(json.data?.resendAfterSeconds ?? 60);
-      toast.success(channel === "email" ? "Verification code sent to your email" : "Code sent via SMS");
+      if (emailJson.data?.devCode) setDevEmailHint(emailJson.data.devCode);
+      if (smsJson.data?.devCode) setDevSmsHint(smsJson.data.devCode);
+      startCooldown(emailJson.data?.resendAfterSeconds ?? 60);
+      toast.success("Verification codes sent to your email and mobile");
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -109,17 +124,47 @@ export default function SignupPage() {
     }
   };
 
-  const completeSignup = async () => {
-    if (otp.length !== 6) {
-      toast.error("Enter the 6-digit code");
+  const registerBasic = async () => {
+    if (!formValid) {
+      toast.error(passwordCheck.hints[0] ?? passwordCheck.message ?? "Fill in all required fields");
       return;
     }
+
     setLoading(true);
     try {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, channel, otp, planSlug }),
+        body: JSON.stringify({ ...form, planSlug }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error?.message ?? "Signup failed");
+      setStep("check-email");
+      toast.success("Check your email to verify your account");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const completeOtpSignup = async () => {
+    if (emailOtp.length !== 6 || smsOtp.length !== 6) {
+      toast.error("Enter both verification codes");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          planSlug,
+          emailOtp,
+          smsOtp,
+        }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error?.message ?? "Signup failed");
@@ -146,15 +191,24 @@ export default function SignupPage() {
     }
   };
 
-  const tabs: { id: SignupChannel; label: string }[] = [
-    { id: "email", label: "Email OTP" },
-    { id: "sms", label: "Mobile OTP" },
-  ];
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpSignupEnabled) sendOtps();
+    else registerBasic();
+  };
+
+  const planOptions = plans.length
+    ? plans
+    : [{ slug: "starter", name: "Starter", description: null, monthlyPriceCents: 0, trialDays: 14, id: "" }];
 
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Start your SynklyERP trial with secure verification."
+      subtitle={
+        otpSignupEnabled
+          ? "Register with your official email and mobile. We'll verify both with OTP."
+          : "Register with your official email and mobile. Verify your email to start onboarding."
+      }
       footer={
         <p className="text-center text-sm text-slate-600">
           Have an account?{" "}
@@ -164,139 +218,87 @@ export default function SignupPage() {
         </p>
       }
     >
-      {step !== "plan" && (
-        <div className="mb-6 flex rounded-lg bg-slate-100 p-1">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              disabled={step === "verify"}
-              onClick={() => {
-                setChannel(t.id);
-                setOtp("");
-                setDevHint("");
-              }}
-              className={`flex-1 rounded-md py-2 text-xs font-medium transition sm:text-sm ${
-                channel === t.id ? "bg-white text-[#1B1538] shadow-sm" : "text-slate-500 hover:text-slate-700"
-              } disabled:opacity-60`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {step === "plan" ? (
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600">Choose a plan to get started. You can change it later.</p>
-          <div className="grid gap-3">
-            {(plans.length ? plans : [{ slug: "starter", name: "Starter", description: "Default plan", monthlyPriceCents: 0, features: [], trialDays: 14, id: "" }]).map((p) => (
-              <button
-                key={p.slug}
-                type="button"
-                onClick={() => setPlanSlug(p.slug)}
-                className={`rounded-xl border p-4 text-left transition ${
-                  planSlug === p.slug ? "border-[#1B1538] bg-[#1B1538]/5 ring-2 ring-[#1B1538]/20" : "border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-900">{p.name}</span>
-                  <span className="text-sm text-slate-600">
-                    {p.monthlyPriceCents > 0 ? `₹${(p.monthlyPriceCents / 100).toLocaleString("en-IN")}/mo` : "Free"}
-                  </span>
-                </div>
-                {p.description && <p className="mt-1 text-sm text-slate-500">{p.description}</p>}
-                {p.trialDays > 0 && <p className="mt-2 text-xs text-indigo-600">{p.trialDays}-day trial</p>}
-              </button>
-            ))}
-          </div>
-          <Button
-            type="button"
-            disabled={!planSlug}
-            onClick={() => setStep("details")}
-            className="h-11 w-full rounded-full text-white"
-            style={{ backgroundColor: "#1B1538" }}
-          >
-            Continue
-          </Button>
-        </div>
-      ) : step === "details" ? (
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            sendOtp();
-          }}
-        >
+      {step === "form" && (
+        <form className="space-y-3" onSubmit={handleSubmit}>
           <div>
-            <Label>Company name</Label>
-            <div className="relative mt-1.5">
+            <Label className="text-xs">Plan</Label>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {planOptions.map((p) => (
+                <button
+                  key={p.slug}
+                  type="button"
+                  onClick={() => setPlanSlug(p.slug)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                    planSlug === p.slug
+                      ? "border-[#1B1538] bg-[#1B1538]/5 text-[#1B1538]"
+                      : "border-slate-200 text-slate-600 hover:border-slate-300"
+                  }`}
+                >
+                  {p.name}
+                  {p.monthlyPriceCents > 0
+                    ? ` · ₹${(p.monthlyPriceCents / 100).toLocaleString("en-IN")}/mo`
+                    : " · Free"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">Company name</Label>
+            <div className="relative mt-1">
               <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 required
                 autoFocus
                 placeholder="Acme Corp"
-                className="pl-10"
+                className="h-10 pl-10"
                 value={form.companyName}
                 onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
               />
             </div>
           </div>
 
-          <div>
-            <Label>Contact person</Label>
-            <div className="relative mt-1.5">
-              <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                required
-                placeholder="John Doe"
-                className="pl-10"
-                value={form.fullName}
-                onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
-              />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label className="text-xs">Official email</Label>
+              <div className="relative mt-1">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  type="email"
+                  required
+                  placeholder="you@company.com"
+                  className="h-10 pl-10"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Mobile number</Label>
+              <div className="relative mt-1">
+                <Smartphone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  type="tel"
+                  required
+                  placeholder="+91 98765 43210"
+                  className="h-10 pl-10"
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                />
+              </div>
             </div>
           </div>
 
           <div>
-            <Label>Email</Label>
-            <div className="relative mt-1.5">
-              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                type="email"
-                required
-                placeholder="john@acmecorp.com"
-                className="pl-10"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label>Mobile number {channel === "sms" ? "" : "(optional)"}</Label>
-            <div className="relative mt-1.5">
-              <Smartphone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                type="tel"
-                required={channel === "sms"}
-                placeholder="+91 98765 43210"
-                className="pl-10"
-                value={form.phone}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label>Password</Label>
-            <div className="relative mt-1.5">
+            <Label className="text-xs">Password</Label>
+            <div className="relative mt-1">
               <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 type={showPassword ? "text" : "password"}
                 required
                 minLength={8}
                 placeholder="Min. 8 characters"
-                className="pl-10 pr-10"
+                className="h-10 pl-10 pr-10"
                 value={form.password}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
               />
@@ -316,37 +318,55 @@ export default function SignupPage() {
 
           <Button
             type="submit"
-            disabled={loading || !detailsValid}
-            className="h-11 w-full rounded-full text-white disabled:opacity-50"
+            disabled={loading || !formValid}
+            className="h-10 w-full rounded-full text-white disabled:opacity-50"
             style={{ backgroundColor: "#1B1538" }}
           >
-            {loading ? "Sending code..." : "Create Account →"}
+            {loading
+              ? otpSignupEnabled
+                ? "Sending codes..."
+                : "Creating account..."
+              : otpSignupEnabled
+                ? "Send verification codes"
+                : "Create account"}
           </Button>
         </form>
-      ) : (
-        <div className="space-y-4">
+      )}
+
+      {step === "verify" && (
+        <div className="space-y-3">
           <p className="text-sm text-slate-600">
-            Enter the verification code sent to <span className="font-medium text-slate-900">{identifier}</span>
+            Enter the codes sent to <strong>{form.email}</strong> and <strong>{form.phone}</strong>
           </p>
-          <OtpInput value={otp} onChange={setOtp} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label className="text-xs">Email code</Label>
+              <OtpInput value={emailOtp} onChange={setEmailOtp} />
+            </div>
+            <div>
+              <Label className="text-xs">Mobile code</Label>
+              <OtpInput value={smsOtp} onChange={setSmsOtp} />
+            </div>
+          </div>
           <button
             type="button"
             className="text-sm text-slate-500 hover:text-[#1B1538] disabled:opacity-50"
             disabled={loading || !canResend}
-            onClick={sendOtp}
+            onClick={sendOtps}
           >
-            {canResend ? "Resend OTP" : `Resend in ${seconds}s`}
+            {canResend ? "Resend codes" : `Resend in ${seconds}s`}
           </button>
-          {devHint && (
+          {(devEmailHint || devSmsHint) && (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              Dev mode OTP: <strong>{devHint}</strong>
+              Dev OTP — Email: <strong>{devEmailHint || "—"}</strong> · Mobile:{" "}
+              <strong>{devSmsHint || "—"}</strong>
             </p>
           )}
           <Button
             type="button"
-            disabled={loading || otp.length !== 6}
-            onClick={completeSignup}
-            className="h-11 w-full rounded-full text-white disabled:opacity-50"
+            disabled={loading || emailOtp.length !== 6 || smsOtp.length !== 6}
+            onClick={completeOtpSignup}
+            className="h-10 w-full rounded-full text-white disabled:opacity-50"
             style={{ backgroundColor: "#1B1538" }}
           >
             {loading ? "Creating account..." : "Verify & create account"}
@@ -355,12 +375,26 @@ export default function SignupPage() {
             type="button"
             className="w-full text-sm text-slate-500 hover:text-[#1B1538]"
             onClick={() => {
-              setStep("details");
-              setOtp("");
+              setStep("form");
+              setEmailOtp("");
+              setSmsOtp("");
             }}
           >
-            ← Back to details
+            ← Back
           </button>
+        </div>
+      )}
+
+      {step === "check-email" && (
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          <p className="font-medium text-slate-900">Verify your official email</p>
+          <p>
+            We sent a verification link to <strong>{form.email}</strong>. Open it to activate your
+            account, then sign in to begin onboarding.
+          </p>
+          <Button asChild className="h-10 w-full rounded-full" style={{ backgroundColor: "#1B1538" }}>
+            <Link href="/login">Go to sign in</Link>
+          </Button>
         </div>
       )}
     </AuthShell>

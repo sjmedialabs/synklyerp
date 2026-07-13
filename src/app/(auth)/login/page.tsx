@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Mail, Lock, Smartphone, Eye, EyeOff } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
@@ -42,6 +43,7 @@ function validatePassword(value: string): string | null {
 }
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -61,6 +63,12 @@ export default function LoginPage() {
   }, [identifier, kind]);
 
   const passwordError = useMemo(() => (password ? validatePassword(password) : null), [password]);
+  const emailVerifiedBanner = searchParams.get("verified") === "1";
+
+  useEffect(() => {
+    const email = searchParams.get("email");
+    if (email) setIdentifier(email);
+  }, [searchParams]);
 
   const canSubmit =
     !!kind &&
@@ -110,7 +118,11 @@ export default function LoginPage() {
               redirect: false,
             });
       if (res?.error) {
-        setFormError("Invalid credentials or account temporarily locked");
+        setFormError(
+          kind === "email"
+            ? "Invalid credentials, unverified email, or account temporarily locked"
+            : "Invalid credentials or account temporarily locked"
+        );
         return;
       }
 
@@ -134,7 +146,12 @@ export default function LoginPage() {
         </p>
       }
     >
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <form className="space-y-3" onSubmit={handleSubmit}>
+        {emailVerifiedBanner && (
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            Email verified. Sign in to start onboarding.
+          </p>
+        )}
         <div>
           <Label htmlFor="identifier">Email or mobile number</Label>
           <div className="relative mt-1.5">
